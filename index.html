@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Portfolio Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --text2: #6e6e73;
+    --accent: #0071e3;
+    --danger: #ff3b30;
+    --green: #34c759;
+    --border: #e5e5ea;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100dvh;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 20px 0 12px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  /* Summary card */
+  .summary {
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .summary .label { font-size: 13px; opacity: 0.85; }
+  .summary .value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+  .summary .holdings-count { font-size: 13px; opacity: 0.8; margin-top: 6px; }
+
+  /* Buttons row */
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .btn {
+    flex: 1;
+    padding: 12px 10px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:active { opacity: 0.7; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--card); color: var(--accent); border: 1.5px solid var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Add form */
+  .add-form {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .add-form.open { display: block; }
+  .add-form h2 { font-size: 17px; margin-bottom: 12px; }
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .form-row input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-row input:focus { border-color: var(--accent); }
+  .form-row input::placeholder { color: var(--text2); }
+
+  /* Holdings list */
+  .holdings-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .holding-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .holding-info { flex: 1; min-width: 0; }
+  .holding-symbol {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .holding-meta {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .holding-meta .shares-display {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--text2);
+  }
+  .holding-value {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .holding-price {
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .holding-mkt {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .holding-delete {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    color: var(--danger);
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .holding-delete:active { background: rgba(255,59,48,0.1); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    color: var(--text2);
+    padding: 40px 20px;
+    font-size: 15px;
+  }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  .btn-secondary .spinner {
+    border-color: rgba(0,113,227,0.3);
+    border-top-color: var(--accent);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--text);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Portfolio Tracker</h1>
+  </header>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="label">Total Value</div>
+    <div class="value" id="totalValue">—</div>
+    <div class="holdings-count" id="holdingsCount">0 holdings</div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="actions">
+    <button class="btn btn-primary" id="addBtn">+ Add</button>
+    <button class="btn btn-secondary" id="refreshBtn">Refresh Prices</button>
+  </div>
+
+  <!-- Add form (hidden by default) -->
+  <div class="add-form" id="addForm">
+    <h2>Add Holding</h2>
+    <div class="form-row">
+      <input type="text" id="symbolInput" placeholder="Symbol (e.g. AAPL)" autocapitalize="characters" autocomplete="off" spellcheck="false">
+      <input type="number" id="sharesInput" placeholder="Shares" min="0" step="any">
+    </div>
+    <button class="btn btn-primary" id="saveBtn" style="width:100%">Add to Portfolio</button>
+  </div>
+
+  <!-- Holdings list -->
+  <div class="holdings-list" id="holdingsList"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // --- State ---
+  const STORAGE_KEY = 'portfolio';
+
+  function loadPortfolio() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function savePortfolio(portfolio) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
+  }
+
+  let portfolio = loadPortfolio();
+
+  // --- DOM refs ---
+  const $totalValue = document.getElementById('totalValue');
+  const $holdingsCount = document.getElementById('holdingsCount');
+  const $addBtn = document.getElementById('addBtn');
+  const $addForm = document.getElementById('addForm');
+  const $symbolInput = document.getElementById('symbolInput');
+  const $sharesInput = document.getElementById('sharesInput');
+  const $saveBtn = document.getElementById('saveBtn');
+  const $refreshBtn = document.getElementById('refreshBtn');
+  const $holdingsList = document.getElementById('holdingsList');
+  const $toast = document.getElementById('toast');
+
+  // --- Toast ---
+  let toastTimer = null;
+  function showToast(msg) {
+    clearTimeout(toastTimer);
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    toastTimer = setTimeout(() => $toast.classList.remove('show'), 2500);
+  }
+
+  // --- Format helpers ---
+  function fmtMoney(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // --- Render ---
+  function render() {
+    // Summary
+    let total = 0;
+    let hasAllPrices = true;
+    portfolio.forEach(h => {
+      if (h.price != null) {
+        total += h.shares * h.price;
+      } else {
+        hasAllPrices = false;
+      }
+    });
+    $totalValue.textContent = portfolio.length === 0 ? '—' : (hasAllPrices ? fmtMoney(total) : fmtMoney(total) + '*');
+    $holdingsCount.textContent = portfolio.length + ' holding' + (portfolio.length !== 1 ? 's' : '');
+
+    // List
+    if (portfolio.length === 0) {
+      $holdingsList.innerHTML = '<div class="empty">No holdings yet.<br>Tap "+ Add" to get started.</div>';
+      return;
+    }
+
+    $holdingsList.innerHTML = portfolio.map((h, i) => {
+      const mktVal = h.price != null ? h.shares * h.price : null;
+      return `
+        <div class="holding-card">
+          <div class="holding-info">
+            <div class="holding-symbol">${esc(h.symbol)}</div>
+            <div class="holding-meta">
+              <span class="shares-display" data-idx="${i}" title="Tap to edit">${h.shares} shares</span>
+              ${h.lastUpdated ? ' · ' + fmtTime(h.lastUpdated) : ''}
+            </div>
+          </div>
+          <div class="holding-value">
+            <div class="holding-price">${fmtMoney(h.price)}</div>
+            <div class="holding-mkt">${mktVal != null ? fmtMoney(mktVal) : ''}</div>
+          </div>
+          <button class="holding-delete" data-idx="${i}" title="Remove">×</button>
+        </div>`;
+    }).join('');
+
+    // Attach events
+    $holdingsList.querySelectorAll('.holding-delete').forEach(btn => {
+      btn.addEventListener('click', () => removeHolding(+btn.dataset.idx));
+    });
+    $holdingsList.querySelectorAll('.shares-display').forEach(el => {
+      el.addEventListener('click', () => editShares(+el.dataset.idx));
+    });
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // --- Add holding ---
+  $addBtn.addEventListener('click', () => {
+    $addForm.classList.toggle('open');
+    if ($addForm.classList.contains('open')) {
+      $symbolInput.focus();
+    }
+  });
+
+  $saveBtn.addEventListener('click', addHolding);
+  $sharesInput.addEventListener('keydown', e => { if (e.key === 'Enter') addHolding(); });
+  $symbolInput.addEventListener('keydown', e => { if (e.key === 'Enter') $sharesInput.focus(); });
+
+  function addHolding() {
+    const symbol = $symbolInput.value.trim().toUpperCase();
+    const shares = parseFloat($sharesInput.value);
+
+    if (!symbol) { showToast('Enter a symbol'); $symbolInput.focus(); return; }
+    if (!shares || shares <= 0) { showToast('Enter a valid number of shares'); $sharesInput.focus(); return; }
+
+    const existing = portfolio.find(h => h.symbol === symbol);
+    if (existing) {
+      existing.shares = shares;
+      showToast(`Updated ${symbol} to ${shares} shares`);
+    } else {
+      portfolio.push({ symbol, shares, price: null, lastUpdated: null });
+      showToast(`Added ${symbol}`);
+    }
+
+    savePortfolio(portfolio);
+    render();
+
+    $symbolInput.value = '';
+    $sharesInput.value = '';
+    $symbolInput.focus();
+  }
+
+  // --- Remove holding ---
+  function removeHolding(idx) {
+    const h = portfolio[idx];
+    if (confirm(`Remove ${h.symbol}?`)) {
+      portfolio.splice(idx, 1);
+      savePortfolio(portfolio);
+      render();
+      showToast(`Removed ${h.symbol}`);
+    }
+  }
+
+  // --- Edit shares ---
+  function editShares(idx) {
+    const h = portfolio[idx];
+    const newShares = prompt(`Shares of ${h.symbol}:`, h.shares);
+    if (newShares === null) return;
+    const parsed = parseFloat(newShares);
+    if (isNaN(parsed) || parsed <= 0) { showToast('Invalid number'); return; }
+    h.shares = parsed;
+    savePortfolio(portfolio);
+    render();
+    showToast(`Updated ${h.symbol} to ${parsed} shares`);
+  }
+
+  // --- Refresh prices ---
+  $refreshBtn.addEventListener('click', refreshPrices);
+
+  async function refreshPrices() {
+    if (portfolio.length === 0) {
+      showToast('Add some holdings first');
+      return;
+    }
+
+    $refreshBtn.disabled = true;
+    $refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing…';
+
+    const symbols = portfolio.map(h => h.symbol);
+
+    try {
+      // Try Yahoo Finance v8 via public CORS proxies
+      const prices = await fetchYahooPrices(symbols);
+      let updated = 0;
+      portfolio.forEach(h => {
+        if (prices[h.symbol] != null) {
+          h.price = prices[h.symbol];
+          h.lastUpdated = Date.now();
+          updated++;
+        }
+      });
+      savePortfolio(portfolio);
+      render();
+      showToast(`Updated ${updated}/${symbols.length} prices`);
+    } catch (err) {
+      console.error('Price fetch failed:', err);
+      showToast('Failed to fetch prices');
+    }
+
+    $refreshBtn.disabled = false;
+    $refreshBtn.innerHTML = 'Refresh Prices';
+  }
+
+  async function fetchYahooPrices(symbols) {
+    const result = {};
+    // Yahoo Finance v8 quote endpoint
+    const symbolsStr = symbols.join(',');
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbolsStr}`;
+
+    // We'll fetch each symbol individually for reliability
+    const fetches = symbols.map(async (sym) => {
+      try {
+        const resp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const meta = data.chart.result[0].meta;
+        result[sym] = meta.regularMarketPrice;
+      } catch (e) {
+        console.warn(`Failed to fetch ${sym}:`, e);
+        // Try fallback
+        try {
+          const resp2 = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`)}`);
+          if (!resp2.ok) throw new Error(`Proxy HTTP ${resp2.status}`);
+          const data2 = await resp2.json();
+          const meta2 = data2.chart.result[0].meta;
+          result[sym] = meta2.regularMarketPrice;
+        } catch (e2) {
+          console.warn(`Fallback also failed for ${sym}:`, e2);
+        }
+      }
+    });
+
+    await Promise.all(fetches);
+    return result;
+  }
+
+  // --- Init ---
+  render();
+
+})();
+</script>
+</body>
+</html>
