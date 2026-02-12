@@ -1083,7 +1083,7 @@
   // =========================================================
   const $clearAllBtn = $('clearAllBtn');
   $clearAllBtn.addEventListener('click', () => {
-    if (items.length === 0 && accounts.length === 0) {
+    if (items.length === 0 && accounts.length === 0 && Object.keys(prices).length === 0 && usdIlsRate == null) {
       showToast('Nothing to clear');
       return;
     }
@@ -1353,9 +1353,12 @@
     items = payload.items;
     accounts = payload.accounts || [];
     prices = payload.prices || {};
+    prevPrices = {};
+    usdIlsRate = null;
     saveItems();
     saveAccounts();
     savePrices();
+    saveUsdIls();
 
     // Clear query string
     history.replaceState(null, '', location.pathname);
