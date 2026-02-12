@@ -949,7 +949,7 @@
   function saveItem() {
     const symbol = $itemSymbolInput.value.trim().toUpperCase();
     const shares = parseFloat($itemSharesInput.value);
-    const accountId = $itemAccountSelect.value || null;
+    const accountId = $itemAccountSelect.value ? Number($itemAccountSelect.value) : null;
 
     if (!symbol) { showToast('Enter a symbol'); $itemSymbolInput.focus(); return; }
     if (!shares || shares <= 0) { showToast('Enter a valid number of shares'); $itemSharesInput.focus(); return; }
