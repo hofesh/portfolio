@@ -53,14 +53,13 @@
     background: var(--accent);
     color: #fff;
     border-radius: var(--radius);
-    padding: 16px 20px;
+    padding: 10px 16px;
     margin-bottom: 12px;
     box-shadow: var(--shadow);
     position: relative;
   }
-  .summary .label { font-size: 13px; opacity: 0.85; }
-  .summary .value { font-size: 30px; font-weight: 700; margin-top: 2px; }
-  .summary .sub { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .summary .value { font-size: 26px; font-weight: 700; }
+  .summary .sub { font-size: 13px; opacity: 0.8; margin-top: 1px; }
   .summary-actions {
     position: absolute;
     top: 12px;
@@ -408,9 +407,9 @@
       <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
       <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>
-    <div class="label">Total Value</div>
     <div class="value" id="totalValue">—</div>
     <div id="summaryDelta"></div>
+    <div class="sub" id="monthlyIncome"></div>
     <div class="sub" id="summarySubtext"></div>
   </div>
 
@@ -524,10 +523,14 @@
   // prices: { SYMBOL: { price, lastUpdated, changeDay, change30d, change1y } }
   //   changeDay/change30d/change1y are percent values (e.g. 2.5 means +2.5%)
   let prices = load(PRICES_KEY, {});
+  // USD/ILS exchange rate
+  const USDILS_KEY = 'portfolio_usdils';
+  let usdIlsRate = load(USDILS_KEY, null);
 
   function saveItems() { save(ITEMS_KEY, items); }
   function saveAccounts() { save(ACCOUNTS_KEY, accounts); }
   function savePrices() { save(PRICES_KEY, prices); }
+  function saveUsdIls() { save(USDILS_KEY, usdIlsRate); }
 
   function getPrice(symbol) {
     const p = prices[symbol];
@@ -552,6 +555,7 @@
   const $ = id => document.getElementById(id);
   const $totalValue = $('totalValue');
   const $summaryDelta = $('summaryDelta');
+  const $monthlyIncome = $('monthlyIncome');
   const $summarySubtext = $('summarySubtext');
   const $refreshBtn = $('refreshBtn');
   const $holdingsList = $('holdingsList');
@@ -586,7 +590,11 @@
   // =========================================================
   function fmtMoney(n) {
     if (n == null || isNaN(n)) return '—';
-    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + Math.round(Number(n)).toLocaleString('en-US');
+  }
+  function fmtILS(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '₪' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
   function fmtTime(ts) {
     if (!ts) return '';
@@ -626,7 +634,7 @@
   function fmtDelta(delta) {
     if (delta == null || isNaN(delta)) return '';
     const sign = delta >= 0 ? '+' : '';
-    return sign + '$' + Math.abs(delta).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return sign + '$' + Math.round(Math.abs(delta)).toLocaleString('en-US');
   }
 
   function deltaClass(delta) {
@@ -707,10 +715,18 @@
       const delta = total - prevTotal;
       const pct = prevTotal ? ((delta / prevTotal) * 100) : 0;
       const sign = delta >= 0 ? '+' : '';
-      $summaryDelta.innerHTML = `<span style="font-size:15px;font-weight:600;opacity:0.95">${fmtDelta(delta)} (${sign}${pct.toFixed(2)}%)</span>`;
-      $summaryDelta.style.marginTop = '2px';
+      $summaryDelta.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.95">${fmtDelta(delta)} (${sign}${pct.toFixed(2)}%)</span>`;
     } else {
       $summaryDelta.innerHTML = '';
+    }
+
+    // Monthly income (3% net SWR, after tax)
+    if (items.length > 0 && total > 0 && usdIlsRate) {
+      const monthlyUSD = total * 0.03 / 12;
+      const monthlyILS = monthlyUSD * usdIlsRate;
+      $monthlyIncome.innerHTML = `${fmtILS(monthlyILS)}/mo <span style="opacity:0.65;font-size:11px">(3% SWR · $1=₪${usdIlsRate.toFixed(2)})</span>`;
+    } else {
+      $monthlyIncome.textContent = '';
     }
 
     const nSymbols = symbols.size;
@@ -1077,9 +1093,11 @@
     accounts = [];
     prices = {};
     prevPrices = {};
+    usdIlsRate = null;
     saveItems();
     saveAccounts();
     savePrices();
+    saveUsdIls();
     render();
     showToast('All data cleared');
   });
@@ -1108,7 +1126,20 @@
     });
 
     try {
-      const fetched = await fetchPrices(symbols);
+      // Fetch stock prices and USD/ILS rate in parallel
+      const fxPromise = (async () => {
+        try {
+          const fxUrl = `https://query1.finance.yahoo.com/v8/finance/chart/USDILS%3DX?interval=1d&range=1d&_t=${Date.now()}`;
+          const fxData = await fetchViaProxy(fxUrl);
+          const fxMeta = fxData.chart.result[0].meta;
+          usdIlsRate = fxMeta.regularMarketPrice;
+          saveUsdIls();
+        } catch (e) {
+          console.warn('Failed to fetch USD/ILS rate:', e);
+        }
+      })();
+
+      const [fetched] = await Promise.all([fetchPrices(symbols), fxPromise]);
       let updated = 0;
       symbols.forEach(sym => {
         if (fetched[sym] != null) {
@@ -1144,7 +1175,7 @@
     for (let i = 0; i < CORS_PROXIES.length; i++) {
       const proxyUrl = CORS_PROXIES[i](targetUrl);
       try {
-        const resp = await fetch(proxyUrl);
+        const resp = await fetch(proxyUrl, { cache: 'no-store' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
         if (json.contents && typeof json.contents === 'string') {
@@ -1162,7 +1193,7 @@
     const result = {};
     const fetches = symbols.map(async (sym) => {
       // Fetch 1 year of daily data — gives us current price, previous close, and historical data
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y&_t=${Date.now()}`;
       try {
         const data = await fetchViaProxy(yahooUrl);
         const chart = data.chart.result[0];
@@ -1256,7 +1287,7 @@
     const payload = { items, accounts, prices };
     const json = JSON.stringify(payload);
     const encoded = btoa(unescape(encodeURIComponent(json)));
-    const url = location.origin + location.pathname + '#data=' + encoded;
+    const url = location.origin + location.pathname + '?data=' + encoded;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => {
@@ -1290,13 +1321,13 @@
   // RESTORE FROM URL
   // =========================================================
   function checkUrlRestore() {
-    const hash = location.hash;
-    if (!hash.startsWith('#data=')) return;
+    const params = new URLSearchParams(location.search);
+    const dataParam = params.get('data');
+    if (!dataParam) return;
 
     let payload;
     try {
-      const encoded = hash.slice(6); // strip '#data='
-      const json = decodeURIComponent(escape(atob(encoded)));
+      const json = decodeURIComponent(escape(atob(dataParam)));
       payload = JSON.parse(json);
     } catch (e) {
       console.error('Failed to parse backup URL:', e);
@@ -1314,7 +1345,7 @@
     const msg = `Restore portfolio from backup?\n\n${itemCount} item(s), ${accountCount} account(s).\n\nThis will REPLACE your current data.`;
 
     if (!confirm(msg)) {
-      // Clear hash so it doesn't ask again on reload
+      // Clear query string so it doesn't ask again on reload
       history.replaceState(null, '', location.pathname);
       return;
     }
@@ -1326,11 +1357,14 @@
     saveAccounts();
     savePrices();
 
-    // Clear hash
+    // Clear query string
     history.replaceState(null, '', location.pathname);
 
     render();
     showToast(`Restored ${itemCount} items`);
+
+    // Auto-refresh prices after restore
+    refreshPrices();
   }
 
   // =========================================================
