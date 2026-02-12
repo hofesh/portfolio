@@ -205,8 +205,9 @@
     grid-template-columns: 1fr auto auto;
     align-items: center;
     gap: 2px 8px;
+    position: relative;
   }
-  /* Row 1: symbol + price + shares (left) | badges (right) | actions */
+  /* Row 1: symbol + price + shares (left) | badges (right, absolute) | actions */
   .card-row1-left {
     display: flex;
     align-items: baseline;
@@ -242,11 +243,17 @@
     border-bottom: 1px dashed var(--text2);
   }
   .card-row1-right {
+    position: absolute;
+    top: 8px;
+    right: 12px;
     display: flex;
     align-items: center;
     gap: 3px;
-    justify-content: flex-end;
     flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .card:has(.card-actions) > .card-row1-right {
+    right: 72px;
   }
   /* Row 2: percent changes (left) | value + delta (right) */
   .card-row2-left {
@@ -800,7 +807,7 @@
           <div class="card-row1-left">
             <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(h.symbol)}" target="_blank">${esc(h.symbol)}</a>
             <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
-            <span class="card-shares">${h.totalShares} sh</span>
+            <span class="card-shares">${h.totalShares}</span>
           </div>
           <div class="card-row1-right">${accText}</div>
           <div class="card-row2-left">${changes}</div>
@@ -838,7 +845,7 @@
           <div class="card-row1-left">
             <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(it.symbol)}" target="_blank">${esc(it.symbol)}</a>
             <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
-            <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} sh</span></span>
+            <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares}</span></span>
           </div>
           <div class="card-row1-right">${accName ? '<span class="badge">' + esc(accName) + '</span>' : ''}</div>
           <div class="card-actions">
