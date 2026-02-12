@@ -14,59 +14,91 @@ A mobile-first, client-side-only web app for tracking a personal stock & ETF por
 
 ## Data Model
 
-Each holding is stored as an object:
+Three collections stored in `localStorage`:
 
+### Items (`portfolio_items`)
+Each item is a specific holding in a specific account:
 ```json
 {
+  "id": 1234567890,
   "symbol": "AAPL",
   "shares": 10,
-  "price": null,
-  "lastUpdated": null
+  "accountId": 9876543210
+}
+```
+The same symbol can appear in multiple accounts.
+
+### Accounts (`portfolio_accounts`)
+```json
+{
+  "id": 9876543210,
+  "name": "Roth IRA"
 }
 ```
 
-The full portfolio is an array of holdings, stored in `localStorage` under the key `portfolio`.
+### Prices (`portfolio_prices`)
+Cached prices keyed by symbol:
+```json
+{
+  "AAPL": { "price": 185.50, "lastUpdated": 1707600000000 }
+}
+```
 
-## MVP Features (v0.1)
+## Features (v0.2)
 
-### 1. View Portfolio
-- Display a list/table of all holdings: **symbol**, **shares**, **price**, **market value** (shares × price), **last updated**
-- Show a **total portfolio value** at the top
+### Tabbed Interface
+Three tabs: **Holdings**, **Items**, **Accounts**
 
-### 2. Add Holding
-- Simple form: symbol (text input) + shares (number input)
-- Adds to the portfolio list and saves to localStorage
-- Duplicate symbols should update the existing entry's share count
+### 1. Holdings Tab (aggregated view)
+- Groups items by **symbol** across all accounts
+- Shows per-symbol: total shares, price, market value, account badges
+- Read-only summary — editing happens in the Items tab
 
-### 3. Remove Holding
-- Each row has a delete button to remove the holding
+### 2. Items Tab (detailed view)
+- Lists every individual item: symbol + account + shares
+- **Add item**: symbol, shares, account (dropdown from accounts list)
+- **Edit item**: change symbol, shares, or account
+- **Edit shares**: tap shares to quick-edit via prompt
+- **Delete item**: remove with confirmation
 
-### 4. Edit Shares
-- Tap on shares to edit the quantity inline or via a prompt
+### 3. Accounts Tab
+- Lists all accounts with total value and item count
+- Shows "Unassigned" group for items with no account
+- **Add account**: name input
+- **Edit account**: rename via prompt
+- **Delete account**: removes account, items become unassigned
 
-### 5. Refresh Prices
-- A single **"Refresh Prices"** button fetches current prices for all holdings
-- Uses a free, no-auth API (Yahoo Finance v8 quote endpoint via a CORS proxy, or similar)
-- Updates price and lastUpdated for each holding
-- Shows a loading indicator during fetch
+### 4. Refresh Prices
+- A single **"Refresh Prices"** button (always visible above tabs)
+- Fetches current prices for all unique symbols via CORS-proxied Yahoo Finance v8
+- Updates cached prices in `portfolio_prices`
+- Shows spinner during fetch, toast with result count
+
+### 5. Summary Card
+- Always visible at top: **total portfolio value**
+- Shows count of symbols, items, and accounts
 
 ### 6. Persistence
-- All changes are immediately saved to `localStorage`
-- On page load, portfolio is restored from `localStorage`
+- All changes immediately saved to `localStorage`
+- On load, data restored from `localStorage`
+- Automatic migration from v0.1 data format
 
 ## UI / UX
 
-- Clean, minimal card-based or list-based layout
+- Clean, minimal card-based layout
+- Three-tab navigation with pill-style active indicator
 - Large tap targets for mobile
 - System font stack for fast rendering
-- Color-coded gain/loss indicators (future iteration)
+- Account names shown as small badges on cards
 - Responsive: works on 320px–768px widths
+- Apple touch icon + web app meta tags for iOS home screen
 
 ## Price Data Source
 
-- Primary: Yahoo Finance v8 endpoint via `query1.finance.yahoo.com`
-- Fallback plan: swap to another free API if Yahoo blocks requests
+- Primary: Yahoo Finance v8 endpoint via `corsproxy.io`
+- Fallback: `allorigins.win` CORS proxy
 - Prices fetched on demand only (no polling)
+- Prices stored separately from items (shared across accounts)
 
 ## Non-Goals (for now)
 

@@ -37,42 +37,67 @@
   .container {
     max-width: 480px;
     margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 100px;
+    padding: 12px 16px;
+    padding-bottom: 80px;
   }
 
   /* Header */
   header {
     text-align: center;
-    padding: 20px 0 12px;
+    padding: 16px 0 8px;
   }
-  header h1 {
-    font-size: 22px;
-    font-weight: 700;
-  }
+  header h1 { font-size: 22px; font-weight: 700; }
 
   /* Summary card */
   .summary {
     background: var(--accent);
     color: #fff;
     border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 16px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
     box-shadow: var(--shadow);
   }
   .summary .label { font-size: 13px; opacity: 0.85; }
-  .summary .value { font-size: 32px; font-weight: 700; margin-top: 4px; }
-  .summary .holdings-count { font-size: 13px; opacity: 0.8; margin-top: 6px; }
+  .summary .value { font-size: 30px; font-weight: 700; margin-top: 2px; }
+  .summary .sub { font-size: 13px; opacity: 0.8; margin-top: 4px; }
 
-  /* Buttons row */
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 3px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Buttons */
   .actions {
     display: flex;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   .btn {
     flex: 1;
-    padding: 12px 10px;
+    padding: 11px 10px;
     border: none;
     border-radius: var(--radius);
     font-size: 15px;
@@ -87,25 +112,30 @@
   .btn:active { opacity: 0.7; }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-secondary { background: var(--card); color: var(--accent); border: 1.5px solid var(--accent); }
+  .btn-sm {
+    flex: none;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Add form */
-  .add-form {
+  /* Forms */
+  .form-card {
     background: var(--card);
     border-radius: var(--radius);
     padding: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     box-shadow: var(--shadow);
     display: none;
   }
-  .add-form.open { display: block; }
-  .add-form h2 { font-size: 17px; margin-bottom: 12px; }
+  .form-card.open { display: block; }
+  .form-card h2 { font-size: 17px; margin-bottom: 12px; }
   .form-row {
     display: flex;
     gap: 10px;
     margin-bottom: 12px;
   }
-  .form-row input {
+  .form-row input, .form-row select {
     flex: 1;
     padding: 10px 12px;
     border: 1.5px solid var(--border);
@@ -116,13 +146,13 @@
     outline: none;
     transition: border-color 0.15s;
   }
-  .form-row input:focus { border-color: var(--accent); }
+  .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
   .form-row input::placeholder { color: var(--text2); }
 
-  /* Holdings list */
-  .holdings-list { display: flex; flex-direction: column; gap: 8px; }
+  /* Card list */
+  .card-list { display: flex; flex-direction: column; gap: 8px; }
 
-  .holding-card {
+  .card {
     background: var(--card);
     border-radius: var(--radius);
     padding: 14px 16px;
@@ -132,50 +162,105 @@
     justify-content: space-between;
     gap: 12px;
   }
-  .holding-info { flex: 1; min-width: 0; }
-  .holding-symbol {
+  .card-main { flex: 1; min-width: 0; }
+  .card-title {
     font-size: 17px;
     font-weight: 700;
     letter-spacing: 0.3px;
   }
-  .holding-meta {
+  .card-sub {
     font-size: 13px;
     color: var(--text2);
     margin-top: 2px;
   }
-  .holding-meta .shares-display {
+  .card-sub .editable {
     cursor: pointer;
     border-bottom: 1px dashed var(--text2);
   }
-  .holding-value {
+  .card-right {
     text-align: right;
     flex-shrink: 0;
   }
-  .holding-price {
+  .card-price {
     font-size: 17px;
     font-weight: 600;
   }
-  .holding-mkt {
+  .card-mkt {
     font-size: 13px;
     color: var(--text2);
     margin-top: 2px;
   }
-  .holding-delete {
+  .card-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .icon-btn {
     width: 32px;
     height: 32px;
     border: none;
     background: none;
-    color: var(--danger);
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     transition: background 0.15s;
   }
-  .holding-delete:active { background: rgba(255,59,48,0.1); }
+  .icon-btn:active { background: rgba(0,0,0,0.06); }
+  .icon-btn.danger { color: var(--danger); }
+  .icon-btn.danger:active { background: rgba(255,59,48,0.1); }
+
+  /* Account badge */
+  .badge {
+    display: inline-block;
+    background: var(--bg);
+    color: var(--text2);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* Delta (refresh change) */
+  .delta {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .delta-up { color: #1a8f3c; }
+  .delta-down { color: #d62c20; }
+  .delta-flat { color: var(--text2); }
+  .delta-sm {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Change indicators */
+  .changes {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .chg {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .chg-label {
+    font-weight: 500;
+    opacity: 0.7;
+  }
+  .chg-up { background: rgba(52,199,89,0.12); color: #1a8f3c; }
+  .chg-down { background: rgba(255,59,48,0.10); color: #d62c20; }
+  .chg-flat { background: var(--bg); color: var(--text2); }
 
   /* Empty state */
   .empty {
@@ -235,27 +320,65 @@
   <div class="summary">
     <div class="label">Total Value</div>
     <div class="value" id="totalValue">—</div>
-    <div class="holdings-count" id="holdingsCount">0 holdings</div>
+    <div id="summaryDelta"></div>
+    <div class="sub" id="summarySubtext"></div>
   </div>
 
-  <!-- Action buttons -->
+  <!-- Refresh + Share -->
   <div class="actions">
-    <button class="btn btn-primary" id="addBtn">+ Add</button>
     <button class="btn btn-secondary" id="refreshBtn">Refresh Prices</button>
+    <button class="btn btn-secondary" id="shareBtn">Share / Backup</button>
   </div>
 
-  <!-- Add form (hidden by default) -->
-  <div class="add-form" id="addForm">
-    <h2>Add Holding</h2>
-    <div class="form-row">
-      <input type="text" id="symbolInput" placeholder="Symbol (e.g. AAPL)" autocapitalize="characters" autocomplete="off" spellcheck="false">
-      <input type="number" id="sharesInput" placeholder="Shares" min="0" step="any">
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="holdings">Holdings</button>
+    <button class="tab-btn" data-tab="items">Items</button>
+    <button class="tab-btn" data-tab="accounts">Accounts</button>
+  </div>
+
+  <!-- ==================== HOLDINGS TAB ==================== -->
+  <div class="tab-panel active" id="tab-holdings">
+    <div class="card-list" id="holdingsList"></div>
+  </div>
+
+  <!-- ==================== ITEMS TAB ==================== -->
+  <div class="tab-panel" id="tab-items">
+    <div class="actions">
+      <button class="btn btn-primary" id="addItemBtn">+ Add Item</button>
     </div>
-    <button class="btn btn-primary" id="saveBtn" style="width:100%">Add to Portfolio</button>
+    <div class="form-card" id="addItemForm">
+      <h2 id="itemFormTitle">Add Item</h2>
+      <div class="form-row">
+        <input type="text" id="itemSymbolInput" placeholder="Symbol (e.g. AAPL)" autocapitalize="characters" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="form-row">
+        <input type="number" id="itemSharesInput" placeholder="Shares" min="0" step="any">
+      </div>
+      <div class="form-row">
+        <select id="itemAccountSelect">
+          <option value="">No account</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="itemSaveBtn" style="width:100%">Add to Portfolio</button>
+    </div>
+    <div class="card-list" id="itemsList"></div>
   </div>
 
-  <!-- Holdings list -->
-  <div class="holdings-list" id="holdingsList"></div>
+  <!-- ==================== ACCOUNTS TAB ==================== -->
+  <div class="tab-panel" id="tab-accounts">
+    <div class="actions">
+      <button class="btn btn-primary" id="addAccountBtn">+ Add Account</button>
+    </div>
+    <div class="form-card" id="addAccountForm">
+      <h2>Add Account</h2>
+      <div class="form-row">
+        <input type="text" id="accountNameInput" placeholder="Account name" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="accountSaveBtn" style="width:100%">Add Account</button>
+    </div>
+    <div class="card-list" id="accountsList"></div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -265,36 +388,98 @@
 (function() {
   'use strict';
 
-  // --- State ---
-  const STORAGE_KEY = 'portfolio';
+  // =========================================================
+  // DATA LAYER
+  // =========================================================
+  const ITEMS_KEY = 'portfolio_items';
+  const ACCOUNTS_KEY = 'portfolio_accounts';
+  const PRICES_KEY = 'portfolio_prices';
 
-  function loadPortfolio() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch {
-      return [];
-    }
+  function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+    catch { return fallback; }
+  }
+  function save(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+  // Migrate from old format
+  function migrateOldData() {
+    const old = load('portfolio', null);
+    if (!old || !Array.isArray(old)) return;
+    // Old format: [{ symbol, shares, price, lastUpdated }]
+    const items = old.map((h, i) => ({
+      id: Date.now() + i,
+      symbol: h.symbol,
+      shares: h.shares,
+      accountId: null,
+    }));
+    const prices = {};
+    old.forEach(h => {
+      if (h.price != null) {
+        prices[h.symbol] = { price: h.price, lastUpdated: h.lastUpdated };
+      }
+    });
+    save(ITEMS_KEY, items);
+    save(PRICES_KEY, prices);
+    localStorage.removeItem('portfolio');
+  }
+  migrateOldData();
+
+  // items: [{ id, symbol, shares, accountId }]
+  let items = load(ITEMS_KEY, []);
+  // accounts: [{ id, name }]
+  let accounts = load(ACCOUNTS_KEY, []);
+  // prices: { SYMBOL: { price, lastUpdated, changeDay, change30d, change1y } }
+  //   changeDay/change30d/change1y are percent values (e.g. 2.5 means +2.5%)
+  let prices = load(PRICES_KEY, {});
+
+  function saveItems() { save(ITEMS_KEY, items); }
+  function saveAccounts() { save(ACCOUNTS_KEY, accounts); }
+  function savePrices() { save(PRICES_KEY, prices); }
+
+  function getPrice(symbol) {
+    const p = prices[symbol];
+    return p ? p.price : null;
+  }
+  function getLastUpdated(symbol) {
+    const p = prices[symbol];
+    return p ? p.lastUpdated : null;
+  }
+  function getPriceData(symbol) {
+    return prices[symbol] || {};
+  }
+  function getAccountName(accountId) {
+    if (!accountId) return null;
+    const a = accounts.find(a => a.id === accountId);
+    return a ? a.name : null;
   }
 
-  function savePortfolio(portfolio) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
-  }
+  // =========================================================
+  // DOM REFS
+  // =========================================================
+  const $ = id => document.getElementById(id);
+  const $totalValue = $('totalValue');
+  const $summaryDelta = $('summaryDelta');
+  const $summarySubtext = $('summarySubtext');
+  const $refreshBtn = $('refreshBtn');
+  const $holdingsList = $('holdingsList');
+  const $addItemBtn = $('addItemBtn');
+  const $addItemForm = $('addItemForm');
+  const $itemFormTitle = $('itemFormTitle');
+  const $itemSymbolInput = $('itemSymbolInput');
+  const $itemSharesInput = $('itemSharesInput');
+  const $itemAccountSelect = $('itemAccountSelect');
+  const $itemSaveBtn = $('itemSaveBtn');
+  const $itemsList = $('itemsList');
+  const $addAccountBtn = $('addAccountBtn');
+  const $addAccountForm = $('addAccountForm');
+  const $accountNameInput = $('accountNameInput');
+  const $accountSaveBtn = $('accountSaveBtn');
+  const $accountsList = $('accountsList');
+  const $toast = $('toast');
 
-  let portfolio = loadPortfolio();
-
-  // --- DOM refs ---
-  const $totalValue = document.getElementById('totalValue');
-  const $holdingsCount = document.getElementById('holdingsCount');
-  const $addBtn = document.getElementById('addBtn');
-  const $addForm = document.getElementById('addForm');
-  const $symbolInput = document.getElementById('symbolInput');
-  const $sharesInput = document.getElementById('sharesInput');
-  const $saveBtn = document.getElementById('saveBtn');
-  const $refreshBtn = document.getElementById('refreshBtn');
-  const $holdingsList = document.getElementById('holdingsList');
-  const $toast = document.getElementById('toast');
-
-  // --- Toast ---
+  // =========================================================
+  // TOAST
+  // =========================================================
   let toastTimer = null;
   function showToast(msg) {
     clearTimeout(toastTimer);
@@ -303,159 +488,522 @@
     toastTimer = setTimeout(() => $toast.classList.remove('show'), 2500);
   }
 
-  // --- Format helpers ---
+  // =========================================================
+  // HELPERS
+  // =========================================================
   function fmtMoney(n) {
     if (n == null || isNaN(n)) return '—';
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
   function fmtTime(ts) {
     if (!ts) return '';
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-
-  // --- Render ---
-  function render() {
-    // Summary
-    let total = 0;
-    let hasAllPrices = true;
-    portfolio.forEach(h => {
-      if (h.price != null) {
-        total += h.shares * h.price;
-      } else {
-        hasAllPrices = false;
-      }
-    });
-    $totalValue.textContent = portfolio.length === 0 ? '—' : (hasAllPrices ? fmtMoney(total) : fmtMoney(total) + '*');
-    $holdingsCount.textContent = portfolio.length + ' holding' + (portfolio.length !== 1 ? 's' : '');
-
-    // List
-    if (portfolio.length === 0) {
-      $holdingsList.innerHTML = '<div class="empty">No holdings yet.<br>Tap "+ Add" to get started.</div>';
-      return;
-    }
-
-    $holdingsList.innerHTML = portfolio.map((h, i) => {
-      const mktVal = h.price != null ? h.shares * h.price : null;
-      return `
-        <div class="holding-card">
-          <div class="holding-info">
-            <div class="holding-symbol">${esc(h.symbol)}</div>
-            <div class="holding-meta">
-              <span class="shares-display" data-idx="${i}" title="Tap to edit">${h.shares} shares</span>
-              ${h.lastUpdated ? ' · ' + fmtTime(h.lastUpdated) : ''}
-            </div>
-          </div>
-          <div class="holding-value">
-            <div class="holding-price">${fmtMoney(h.price)}</div>
-            <div class="holding-mkt">${mktVal != null ? fmtMoney(mktVal) : ''}</div>
-          </div>
-          <button class="holding-delete" data-idx="${i}" title="Remove">×</button>
-        </div>`;
-    }).join('');
-
-    // Attach events
-    $holdingsList.querySelectorAll('.holding-delete').forEach(btn => {
-      btn.addEventListener('click', () => removeHolding(+btn.dataset.idx));
-    });
-    $holdingsList.querySelectorAll('.shares-display').forEach(el => {
-      el.addEventListener('click', () => editShares(+el.dataset.idx));
-    });
-  }
-
   function esc(s) {
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
   }
+  function uid() { return Date.now() + Math.random(); }
 
-  // --- Add holding ---
-  $addBtn.addEventListener('click', () => {
-    $addForm.classList.toggle('open');
-    if ($addForm.classList.contains('open')) {
-      $symbolInput.focus();
-    }
+  // =========================================================
+  // DELTA TRACKING (change since last refresh)
+  // =========================================================
+  // Stores the value snapshot from before the last refresh
+  let prevPrices = {}; // { SYMBOL: price } — prices before last refresh
+
+  function computeTotalValue() {
+    let total = 0;
+    items.forEach(it => {
+      const p = getPrice(it.symbol);
+      if (p != null) total += it.shares * p;
+    });
+    return total;
+  }
+
+  function computeTotalWithPrices(priceMap) {
+    let total = 0;
+    items.forEach(it => {
+      const p = priceMap[it.symbol];
+      if (p != null) total += it.shares * p;
+    });
+    return total;
+  }
+
+  function fmtDelta(delta) {
+    if (delta == null || isNaN(delta)) return '';
+    const sign = delta >= 0 ? '+' : '';
+    return sign + '$' + Math.abs(delta).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function deltaClass(delta) {
+    if (delta == null || isNaN(delta)) return 'delta-flat';
+    if (delta > 0.005) return 'delta-up';
+    if (delta < -0.005) return 'delta-down';
+    return 'delta-flat';
+  }
+
+  // Per-symbol delta (value change for 1 share)
+  function getSymbolPriceDelta(symbol) {
+    const curr = getPrice(symbol);
+    const prev = prevPrices[symbol];
+    if (curr == null || prev == null) return null;
+    return curr - prev;
+  }
+
+  function fmtPct(n) {
+    if (n == null || isNaN(n)) return null;
+    const sign = n >= 0 ? '+' : '';
+    return sign + n.toFixed(1) + '%';
+  }
+  function chgClass(n) {
+    if (n == null || isNaN(n)) return 'chg-flat';
+    if (n > 0.05) return 'chg-up';
+    if (n < -0.05) return 'chg-down';
+    return 'chg-flat';
+  }
+  function renderChanges(symbol) {
+    const pd = getPriceData(symbol);
+    const parts = [
+      { label: '1D', val: pd.changeDay },
+      { label: '30D', val: pd.change30d },
+      { label: '1Y', val: pd.change1y },
+    ];
+    const html = parts
+      .filter(p => p.val != null)
+      .map(p => `<span class="chg ${chgClass(p.val)}"><span class="chg-label">${p.label}</span> ${fmtPct(p.val)}</span>`)
+      .join('');
+    return html ? `<div class="changes">${html}</div>` : '';
+  }
+
+  // =========================================================
+  // TABS
+  // =========================================================
+  let activeTab = 'holdings';
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + activeTab));
+      render();
+    });
   });
 
-  $saveBtn.addEventListener('click', addHolding);
-  $sharesInput.addEventListener('keydown', e => { if (e.key === 'Enter') addHolding(); });
-  $symbolInput.addEventListener('keydown', e => { if (e.key === 'Enter') $sharesInput.focus(); });
+  // =========================================================
+  // RENDER — SUMMARY
+  // =========================================================
+  function renderSummary() {
+    let total = 0;
+    let hasAllPrices = true;
+    const symbols = new Set();
+    items.forEach(it => {
+      symbols.add(it.symbol);
+      const p = getPrice(it.symbol);
+      if (p != null) {
+        total += it.shares * p;
+      } else {
+        hasAllPrices = false;
+      }
+    });
+    $totalValue.textContent = items.length === 0 ? '—' : (hasAllPrices ? fmtMoney(total) : fmtMoney(total) + '*');
 
-  function addHolding() {
-    const symbol = $symbolInput.value.trim().toUpperCase();
-    const shares = parseFloat($sharesInput.value);
-
-    if (!symbol) { showToast('Enter a symbol'); $symbolInput.focus(); return; }
-    if (!shares || shares <= 0) { showToast('Enter a valid number of shares'); $sharesInput.focus(); return; }
-
-    const existing = portfolio.find(h => h.symbol === symbol);
-    if (existing) {
-      existing.shares = shares;
-      showToast(`Updated ${symbol} to ${shares} shares`);
+    // Show delta from last refresh
+    const hasPrev = Object.keys(prevPrices).length > 0;
+    if (hasPrev && items.length > 0) {
+      const prevTotal = computeTotalWithPrices(prevPrices);
+      const delta = total - prevTotal;
+      const pct = prevTotal ? ((delta / prevTotal) * 100) : 0;
+      const sign = delta >= 0 ? '+' : '';
+      $summaryDelta.innerHTML = `<span style="font-size:15px;font-weight:600;opacity:0.95">${fmtDelta(delta)} (${sign}${pct.toFixed(2)}%)</span>`;
+      $summaryDelta.style.marginTop = '2px';
     } else {
-      portfolio.push({ symbol, shares, price: null, lastUpdated: null });
+      $summaryDelta.innerHTML = '';
+    }
+
+    const nSymbols = symbols.size;
+    const nItems = items.length;
+    const nAccounts = accounts.length;
+    const parts = [];
+    parts.push(nSymbols + ' symbol' + (nSymbols !== 1 ? 's' : ''));
+    parts.push(nItems + ' item' + (nItems !== 1 ? 's' : ''));
+    if (nAccounts) parts.push(nAccounts + ' account' + (nAccounts !== 1 ? 's' : ''));
+    $summarySubtext.textContent = parts.join(' · ');
+  }
+
+  // =========================================================
+  // RENDER — HOLDINGS TAB (aggregated by symbol)
+  // =========================================================
+  function renderHoldings() {
+    // Aggregate by symbol
+    const map = {};
+    items.forEach(it => {
+      if (!map[it.symbol]) map[it.symbol] = { symbol: it.symbol, totalShares: 0, accounts: [] };
+      map[it.symbol].totalShares += it.shares;
+      const accName = getAccountName(it.accountId);
+      if (accName && !map[it.symbol].accounts.includes(accName)) {
+        map[it.symbol].accounts.push(accName);
+      }
+    });
+    const holdings = Object.values(map).sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+    if (holdings.length === 0) {
+      $holdingsList.innerHTML = '<div class="empty">No holdings yet.<br>Go to Items tab to add some.</div>';
+      return;
+    }
+
+    $holdingsList.innerHTML = holdings.map(h => {
+      const p = getPrice(h.symbol);
+      const mktVal = p != null ? h.totalShares * p : null;
+      const ts = getLastUpdated(h.symbol);
+      const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
+      const priceDelta = getSymbolPriceDelta(h.symbol);
+      const valDelta = priceDelta != null ? priceDelta * h.totalShares : null;
+      const deltaHtml = valDelta != null ? `<div class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</div>` : '';
+      return `
+        <div class="card" style="flex-wrap:wrap">
+          <div class="card-main">
+            <div class="card-title">${esc(h.symbol)}</div>
+            <div class="card-sub">
+              ${h.totalShares} shares${accText ? ' · ' + accText : ''}
+              ${ts ? ' · ' + fmtTime(ts) : ''}
+            </div>
+          </div>
+          <div class="card-right">
+            <div class="card-price">${mktVal != null ? fmtMoney(mktVal) : '—'}</div>
+            ${deltaHtml}
+            <div class="card-mkt">${p != null ? fmtMoney(p) : ''}</div>
+          </div>
+          ${renderChanges(h.symbol)}
+        </div>`;
+    }).join('');
+  }
+
+  // =========================================================
+  // RENDER — ITEMS TAB
+  // =========================================================
+  function renderItems() {
+    populateAccountSelect();
+
+    if (items.length === 0) {
+      $itemsList.innerHTML = '<div class="empty">No items yet.<br>Tap "+ Add Item" to get started.</div>';
+      return;
+    }
+
+    const sorted = [...items].sort((a, b) => a.symbol.localeCompare(b.symbol) || (getAccountName(a.accountId) || '').localeCompare(getAccountName(b.accountId) || ''));
+
+    $itemsList.innerHTML = sorted.map(it => {
+      const p = getPrice(it.symbol);
+      const mktVal = p != null ? it.shares * p : null;
+      const accName = getAccountName(it.accountId);
+      const priceDelta = getSymbolPriceDelta(it.symbol);
+      const valDelta = priceDelta != null ? priceDelta * it.shares : null;
+      const deltaHtml = valDelta != null ? `<div class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</div>` : '';
+      return `
+        <div class="card" style="flex-wrap:wrap">
+          <div class="card-main">
+            <div class="card-title">${esc(it.symbol)}${accName ? ' <span class="badge">' + esc(accName) + '</span>' : ''}</div>
+            <div class="card-sub">
+              <span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} shares</span>
+            </div>
+          </div>
+          <div class="card-right">
+            <div class="card-price">${mktVal != null ? fmtMoney(mktVal) : '—'}</div>
+            ${deltaHtml}
+            <div class="card-mkt">${p != null ? fmtMoney(p) : ''}</div>
+          </div>
+          <div class="card-actions">
+            <button class="icon-btn" data-action="edit-item" data-id="${it.id}" title="Edit">✎</button>
+            <button class="icon-btn danger" data-action="delete-item" data-id="${it.id}" title="Remove">×</button>
+          </div>
+          ${renderChanges(it.symbol)}
+        </div>`;
+    }).join('');
+
+    // Event delegation
+    $itemsList.querySelectorAll('[data-action="delete-item"]').forEach(el => {
+      el.addEventListener('click', () => deleteItem(el.dataset.id));
+    });
+    $itemsList.querySelectorAll('[data-action="edit-shares"]').forEach(el => {
+      el.addEventListener('click', () => editItemShares(el.dataset.id));
+    });
+    $itemsList.querySelectorAll('[data-action="edit-item"]').forEach(el => {
+      el.addEventListener('click', () => openEditItem(el.dataset.id));
+    });
+  }
+
+  function populateAccountSelect() {
+    const current = $itemAccountSelect.value;
+    $itemAccountSelect.innerHTML = '<option value="">No account</option>' +
+      accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+    $itemAccountSelect.value = current;
+  }
+
+  // =========================================================
+  // RENDER — ACCOUNTS TAB
+  // =========================================================
+  function renderAccounts() {
+    if (accounts.length === 0) {
+      $accountsList.innerHTML = '<div class="empty">No accounts yet.<br>Tap "+ Add Account" to create one.</div>';
+      return;
+    }
+
+    // Compute total value per account
+    const totals = {};
+    accounts.forEach(a => { totals[a.id] = { value: 0, count: 0, hasPrices: true }; });
+    items.forEach(it => {
+      if (!it.accountId) return;
+      if (!totals[it.accountId]) return;
+      const p = getPrice(it.symbol);
+      if (p != null) {
+        totals[it.accountId].value += it.shares * p;
+      } else {
+        totals[it.accountId].hasPrices = false;
+      }
+      totals[it.accountId].count++;
+    });
+
+    // Unassigned items
+    const unassigned = items.filter(it => !it.accountId);
+
+    $accountsList.innerHTML = accounts.map(a => {
+      const t = totals[a.id];
+      const valStr = t.count === 0 ? '—' : (t.hasPrices ? fmtMoney(t.value) : fmtMoney(t.value) + '*');
+      return `
+        <div class="card">
+          <div class="card-main">
+            <div class="card-title">${esc(a.name)}</div>
+            <div class="card-sub">${t.count} item${t.count !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="card-right">
+            <div class="card-price">${valStr}</div>
+          </div>
+          <div class="card-actions">
+            <button class="icon-btn" data-action="edit-account" data-id="${a.id}" title="Edit">✎</button>
+            <button class="icon-btn danger" data-action="delete-account" data-id="${a.id}" title="Remove">×</button>
+          </div>
+        </div>`;
+    }).join('') + (unassigned.length ? `
+      <div class="card" style="opacity:0.7">
+        <div class="card-main">
+          <div class="card-title">Unassigned</div>
+          <div class="card-sub">${unassigned.length} item${unassigned.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="card-right">
+          <div class="card-price">${fmtMoney(unassigned.reduce((s, it) => { const p = getPrice(it.symbol); return s + (p != null ? it.shares * p : 0); }, 0))}</div>
+        </div>
+      </div>` : '');
+
+    $accountsList.querySelectorAll('[data-action="edit-account"]').forEach(el => {
+      el.addEventListener('click', () => editAccount(el.dataset.id));
+    });
+    $accountsList.querySelectorAll('[data-action="delete-account"]').forEach(el => {
+      el.addEventListener('click', () => deleteAccount(el.dataset.id));
+    });
+  }
+
+  // =========================================================
+  // MASTER RENDER
+  // =========================================================
+  function render() {
+    renderSummary();
+    if (activeTab === 'holdings') renderHoldings();
+    if (activeTab === 'items') renderItems();
+    if (activeTab === 'accounts') renderAccounts();
+  }
+
+  // =========================================================
+  // ITEM CRUD
+  // =========================================================
+  let editingItemId = null;
+
+  $addItemBtn.addEventListener('click', () => {
+    editingItemId = null;
+    $itemFormTitle.textContent = 'Add Item';
+    $itemSaveBtn.textContent = 'Add to Portfolio';
+    $itemSymbolInput.value = '';
+    $itemSharesInput.value = '';
+    $itemAccountSelect.value = '';
+    populateAccountSelect();
+    $addItemForm.classList.toggle('open');
+    if ($addItemForm.classList.contains('open')) $itemSymbolInput.focus();
+  });
+
+  $itemSymbolInput.addEventListener('keydown', e => { if (e.key === 'Enter') $itemSharesInput.focus(); });
+  $itemSharesInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveItem(); });
+  $itemSaveBtn.addEventListener('click', saveItem);
+
+  function saveItem() {
+    const symbol = $itemSymbolInput.value.trim().toUpperCase();
+    const shares = parseFloat($itemSharesInput.value);
+    const accountId = $itemAccountSelect.value || null;
+
+    if (!symbol) { showToast('Enter a symbol'); $itemSymbolInput.focus(); return; }
+    if (!shares || shares <= 0) { showToast('Enter a valid number of shares'); $itemSharesInput.focus(); return; }
+
+    const isNewSymbol = !items.some(it => it.symbol === symbol);
+
+    if (editingItemId) {
+      const item = items.find(it => String(it.id) === String(editingItemId));
+      if (item) {
+        item.symbol = symbol;
+        item.shares = shares;
+        item.accountId = accountId;
+        showToast(`Updated ${symbol}`);
+      }
+      editingItemId = null;
+    } else {
+      items.push({ id: uid(), symbol, shares, accountId });
       showToast(`Added ${symbol}`);
     }
 
-    savePortfolio(portfolio);
+    saveItems();
     render();
+    $addItemForm.classList.remove('open');
+    $itemSymbolInput.value = '';
+    $itemSharesInput.value = '';
+    $itemAccountSelect.value = '';
 
-    $symbolInput.value = '';
-    $sharesInput.value = '';
-    $symbolInput.focus();
-  }
-
-  // --- Remove holding ---
-  function removeHolding(idx) {
-    const h = portfolio[idx];
-    if (confirm(`Remove ${h.symbol}?`)) {
-      portfolio.splice(idx, 1);
-      savePortfolio(portfolio);
-      render();
-      showToast(`Removed ${h.symbol}`);
+    // Auto-refresh prices when a new symbol is added
+    if (isNewSymbol || !getPrice(symbol)) {
+      refreshPrices();
     }
   }
 
-  // --- Edit shares ---
-  function editShares(idx) {
-    const h = portfolio[idx];
-    const newShares = prompt(`Shares of ${h.symbol}:`, h.shares);
+  function openEditItem(id) {
+    const item = items.find(it => String(it.id) === String(id));
+    if (!item) return;
+    editingItemId = id;
+    $itemFormTitle.textContent = 'Edit Item';
+    $itemSaveBtn.textContent = 'Save Changes';
+    $itemSymbolInput.value = item.symbol;
+    $itemSharesInput.value = item.shares;
+    populateAccountSelect();
+    $itemAccountSelect.value = item.accountId || '';
+    $addItemForm.classList.add('open');
+    $itemSymbolInput.focus();
+  }
+
+  function editItemShares(id) {
+    const item = items.find(it => String(it.id) === String(id));
+    if (!item) return;
+    const newShares = prompt(`Shares of ${item.symbol}:`, item.shares);
     if (newShares === null) return;
     const parsed = parseFloat(newShares);
     if (isNaN(parsed) || parsed <= 0) { showToast('Invalid number'); return; }
-    h.shares = parsed;
-    savePortfolio(portfolio);
+    item.shares = parsed;
+    saveItems();
     render();
-    showToast(`Updated ${h.symbol} to ${parsed} shares`);
+    showToast(`Updated ${item.symbol} to ${parsed} shares`);
   }
 
-  // --- Refresh prices ---
+  function deleteItem(id) {
+    const idx = items.findIndex(it => String(it.id) === String(id));
+    if (idx < 0) return;
+    const item = items[idx];
+    if (confirm(`Remove ${item.symbol}${getAccountName(item.accountId) ? ' (' + getAccountName(item.accountId) + ')' : ''}?`)) {
+      items.splice(idx, 1);
+      saveItems();
+      render();
+      showToast(`Removed ${item.symbol}`);
+    }
+  }
+
+  // =========================================================
+  // ACCOUNT CRUD
+  // =========================================================
+  $addAccountBtn.addEventListener('click', () => {
+    $addAccountForm.classList.toggle('open');
+    if ($addAccountForm.classList.contains('open')) $accountNameInput.focus();
+  });
+
+  $accountNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveNewAccount(); });
+  $accountSaveBtn.addEventListener('click', saveNewAccount);
+
+  function saveNewAccount() {
+    const name = $accountNameInput.value.trim();
+    if (!name) { showToast('Enter an account name'); $accountNameInput.focus(); return; }
+    if (accounts.find(a => a.name.toLowerCase() === name.toLowerCase())) {
+      showToast('Account already exists');
+      return;
+    }
+    accounts.push({ id: uid(), name });
+    saveAccounts();
+    render();
+    $accountNameInput.value = '';
+    $addAccountForm.classList.remove('open');
+    showToast(`Added account "${name}"`);
+  }
+
+  function editAccount(id) {
+    const acc = accounts.find(a => String(a.id) === String(id));
+    if (!acc) return;
+    const newName = prompt('Account name:', acc.name);
+    if (newName === null) return;
+    const trimmed = newName.trim();
+    if (!trimmed) { showToast('Name cannot be empty'); return; }
+    acc.name = trimmed;
+    saveAccounts();
+    render();
+    showToast(`Renamed to "${trimmed}"`);
+  }
+
+  function deleteAccount(id) {
+    const acc = accounts.find(a => String(a.id) === String(id));
+    if (!acc) return;
+    const assignedCount = items.filter(it => String(it.accountId) === String(id)).length;
+    const msg = assignedCount
+      ? `Remove "${acc.name}"? ${assignedCount} item(s) will become unassigned.`
+      : `Remove "${acc.name}"?`;
+    if (!confirm(msg)) return;
+    // Unassign items
+    items.forEach(it => { if (String(it.accountId) === String(id)) it.accountId = null; });
+    accounts = accounts.filter(a => String(a.id) !== String(id));
+    saveAccounts();
+    saveItems();
+    render();
+    showToast(`Removed "${acc.name}"`);
+  }
+
+  // =========================================================
+  // REFRESH PRICES
+  // =========================================================
   $refreshBtn.addEventListener('click', refreshPrices);
 
   async function refreshPrices() {
-    if (portfolio.length === 0) {
-      showToast('Add some holdings first');
+    if (items.length === 0) {
+      showToast('Add some items first');
       return;
     }
 
     $refreshBtn.disabled = true;
     $refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing…';
 
-    const symbols = portfolio.map(h => h.symbol);
+    const symbols = [...new Set(items.map(it => it.symbol))];
+
+    // Snapshot current prices before refresh
+    prevPrices = {};
+    symbols.forEach(sym => {
+      const p = getPrice(sym);
+      if (p != null) prevPrices[sym] = p;
+    });
 
     try {
-      // Try Yahoo Finance v8 via public CORS proxies
-      const prices = await fetchPrices(symbols);
+      const fetched = await fetchPrices(symbols);
       let updated = 0;
-      portfolio.forEach(h => {
-        if (prices[h.symbol] != null) {
-          h.price = prices[h.symbol];
-          h.lastUpdated = Date.now();
+      symbols.forEach(sym => {
+        if (fetched[sym] != null) {
+          prices[sym] = {
+            price: fetched[sym].price,
+            lastUpdated: Date.now(),
+            changeDay: fetched[sym].changeDay,
+            change30d: fetched[sym].change30d,
+            change1y: fetched[sym].change1y,
+          };
           updated++;
         }
       });
-      savePortfolio(portfolio);
+      savePrices();
       render();
       showToast(`Updated ${updated}/${symbols.length} prices`);
     } catch (err) {
@@ -467,7 +1015,7 @@
     $refreshBtn.innerHTML = 'Refresh Prices';
   }
 
-  // CORS proxies that work with file:// origin (null origin)
+  // CORS proxies
   const CORS_PROXIES = [
     (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
     (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
@@ -480,7 +1028,6 @@
         const resp = await fetch(proxyUrl);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
-        // allorigins wraps response in { contents: "..." }
         if (json.contents && typeof json.contents === 'string') {
           return JSON.parse(json.contents);
         }
@@ -494,24 +1041,184 @@
 
   async function fetchPrices(symbols) {
     const result = {};
-
     const fetches = symbols.map(async (sym) => {
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
+      // Fetch 1 year of daily data — gives us current price, previous close, and historical data
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
       try {
         const data = await fetchViaProxy(yahooUrl);
-        const meta = data.chart.result[0].meta;
-        result[sym] = meta.regularMarketPrice;
+        const chart = data.chart.result[0];
+        const meta = chart.meta;
+
+        // Get historical close prices (regular session only)
+        const timestamps = chart.timestamp || [];
+        const closes = (chart.indicators.quote[0].close) || [];
+
+        // Determine if market is currently in regular trading hours
+        const nowSec = Date.now() / 1000;
+        const tradingPeriod = meta.currentTradingPeriod;
+        const regStart = tradingPeriod && tradingPeriod.regular ? tradingPeriod.regular.start : 0;
+        const regEnd = tradingPeriod && tradingPeriod.regular ? tradingPeriod.regular.end : 0;
+        const isRegularHours = nowSec >= regStart && nowSec <= regEnd;
+
+        // Find the last non-null close in the chart data (most recent regular-session close)
+        function lastClose() {
+          for (let i = closes.length - 1; i >= 0; i--) {
+            if (closes[i] != null) return closes[i];
+          }
+          return null;
+        }
+
+        // During regular hours: use live regularMarketPrice
+        // Outside regular hours: use last chart close (regular-session close)
+        const currentPrice = isRegularHours ? meta.regularMarketPrice : (lastClose() || meta.regularMarketPrice);
+
+        // Helper: find the last non-null close at or before a timestamp
+        function closeAt(targetTs) {
+          for (let i = timestamps.length - 1; i >= 0; i--) {
+            if (timestamps[i] <= targetTs && closes[i] != null) {
+              return closes[i];
+            }
+          }
+          return null;
+        }
+
+        function pctChange(oldPrice) {
+          if (!oldPrice) return null;
+          return ((currentPrice - oldPrice) / oldPrice) * 100;
+        }
+
+        // 1D: previous trading day's close
+        // Find the second-to-last distinct trading day close
+        // (last close is today's or most recent; we want the one before that)
+        let closeYesterday = null;
+        if (closes.length >= 2) {
+          // Walk backwards to find the last close, then find the one before it
+          let lastIdx = -1;
+          for (let i = closes.length - 1; i >= 0; i--) {
+            if (closes[i] != null) { lastIdx = i; break; }
+          }
+          if (lastIdx > 0) {
+            for (let i = lastIdx - 1; i >= 0; i--) {
+              if (closes[i] != null) { closeYesterday = closes[i]; break; }
+            }
+          }
+        }
+
+        // 30D: close ~30 calendar days ago
+        const close30d = closeAt(nowSec - 30 * 86400);
+
+        // 1Y: first available close in the dataset (≈1 year ago)
+        let close1y = null;
+        for (let i = 0; i < timestamps.length; i++) {
+          if (closes[i] != null) { close1y = closes[i]; break; }
+        }
+
+        result[sym] = {
+          price: currentPrice,
+          changeDay: pctChange(closeYesterday),
+          change30d: pctChange(close30d),
+          change1y: pctChange(close1y),
+        };
       } catch (e) {
         console.warn(`All proxies failed for ${sym}:`, e);
       }
     });
-
     await Promise.all(fetches);
     return result;
   }
 
-  // --- Init ---
+  // =========================================================
+  // SHARE / BACKUP (encode state in URL)
+  // =========================================================
+  const $shareBtn = $('shareBtn');
+  $shareBtn.addEventListener('click', sharePortfolio);
+
+  function sharePortfolio() {
+    const payload = { items, accounts, prices };
+    const json = JSON.stringify(payload);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    const url = location.origin + location.pathname + '#data=' + encoded;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Backup link copied to clipboard');
+      }).catch(() => {
+        fallbackCopy(url);
+      });
+    } else {
+      fallbackCopy(url);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('Backup link copied to clipboard');
+    } catch {
+      showToast('Could not copy — check console');
+      console.log('Backup URL:', text);
+    }
+    document.body.removeChild(ta);
+  }
+
+  // =========================================================
+  // RESTORE FROM URL
+  // =========================================================
+  function checkUrlRestore() {
+    const hash = location.hash;
+    if (!hash.startsWith('#data=')) return;
+
+    let payload;
+    try {
+      const encoded = hash.slice(6); // strip '#data='
+      const json = decodeURIComponent(escape(atob(encoded)));
+      payload = JSON.parse(json);
+    } catch (e) {
+      console.error('Failed to parse backup URL:', e);
+      showToast('Invalid backup link');
+      return;
+    }
+
+    if (!payload.items || !Array.isArray(payload.items)) {
+      showToast('Invalid backup data');
+      return;
+    }
+
+    const itemCount = payload.items.length;
+    const accountCount = (payload.accounts || []).length;
+    const msg = `Restore portfolio from backup?\n\n${itemCount} item(s), ${accountCount} account(s).\n\nThis will REPLACE your current data.`;
+
+    if (!confirm(msg)) {
+      // Clear hash so it doesn't ask again on reload
+      history.replaceState(null, '', location.pathname);
+      return;
+    }
+
+    items = payload.items;
+    accounts = payload.accounts || [];
+    prices = payload.prices || {};
+    saveItems();
+    saveAccounts();
+    savePrices();
+
+    // Clear hash
+    history.replaceState(null, '', location.pathname);
+
+    render();
+    showToast(`Restored ${itemCount} items`);
+  }
+
+  // =========================================================
+  // INIT
+  // =========================================================
   render();
+  checkUrlRestore();
 
 })();
 </script>
