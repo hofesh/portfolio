@@ -56,10 +56,55 @@
     padding: 16px 20px;
     margin-bottom: 12px;
     box-shadow: var(--shadow);
+    position: relative;
   }
   .summary .label { font-size: 13px; opacity: 0.85; }
   .summary .value { font-size: 30px; font-weight: 700; margin-top: 2px; }
   .summary .sub { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .summary-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 4px;
+  }
+  .summary-actions button {
+    width: 34px;
+    height: 34px;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    padding: 0;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .summary-actions button:active { background: rgba(255,255,255,0.3); }
+  .summary-actions button.danger-icon { border-color: rgba(255,100,90,0.5); background: rgba(255,59,48,0.2); }
+  .summary-actions button.danger-icon:active { background: rgba(255,59,48,0.4); }
+  .summary-actions button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+  .summary-actions button.danger-icon svg { stroke: #ffb3af; }
+  .summary-actions .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    pointer-events: none;
+  }
 
   /* Tabs */
   .tab-bar {
@@ -150,63 +195,79 @@
   .form-row input::placeholder { color: var(--text2); }
 
   /* Card list */
-  .card-list { display: flex; flex-direction: column; gap: 8px; }
+  .card-list { display: flex; flex-direction: column; gap: 6px; }
 
   .card {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 8px 12px;
     box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 2px 8px;
+  }
+  /* Row 1: symbol + changes (left) | badges (right) | actions */
+  .card-row1-left {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 5px;
+    min-width: 0;
   }
-  .card-main { flex: 1; min-width: 0; }
-  .card-title {
-    font-size: 17px;
+  .card-symbol {
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.3px;
+    flex-shrink: 0;
   }
-  .card-sub {
-    font-size: 13px;
+  .card-row1-right {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  /* Row 2: shares + price (left) | value + delta (right) | actions */
+  .card-row2-left {
+    font-size: 12px;
     color: var(--text2);
-    margin-top: 2px;
+    grid-column: 1;
   }
-  .card-sub .editable {
+  .card-row2-left .editable {
     cursor: pointer;
     border-bottom: 1px dashed var(--text2);
   }
-  .card-right {
-    text-align: right;
-    flex-shrink: 0;
+  .card-row2-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-end;
   }
-  .card-price {
-    font-size: 17px;
+  .card-value {
+    font-size: 15px;
     font-weight: 600;
-  }
-  .card-mkt {
-    font-size: 13px;
-    color: var(--text2);
-    margin-top: 2px;
   }
   .card-actions {
     display: flex;
-    gap: 2px;
+    gap: 0;
     flex-shrink: 0;
+    grid-row: 1 / 3;
+    grid-column: 3;
+    align-self: center;
   }
   .icon-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: none;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.15s;
+    padding: 0;
   }
   .icon-btn:active { background: rgba(0,0,0,0.06); }
   .icon-btn.danger { color: var(--danger); }
@@ -217,20 +278,14 @@
     display: inline-block;
     background: var(--bg);
     color: var(--text2);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-    margin-left: 4px;
+    padding: 1px 5px;
+    border-radius: 3px;
     vertical-align: middle;
   }
 
   /* Delta (refresh change) */
-  .delta {
-    font-size: 14px;
-    font-weight: 600;
-    margin-top: 2px;
-  }
   .delta-up { color: #1a8f3c; }
   .delta-down { color: #d62c20; }
   .delta-flat { color: var(--text2); }
@@ -239,20 +294,14 @@
     font-weight: 600;
   }
 
-  /* Change indicators */
-  .changes {
-    display: flex;
-    gap: 6px;
-    margin-top: 2px;
-    flex-wrap: wrap;
-    width: 100%;
-  }
+  /* Change indicators (inline) */
   .chg {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
     white-space: nowrap;
+    display: inline-block;
   }
   .chg-label {
     font-weight: 500;
@@ -261,6 +310,16 @@
   .chg-up { background: rgba(52,199,89,0.12); color: #1a8f3c; }
   .chg-down { background: rgba(255,59,48,0.10); color: #d62c20; }
   .chg-flat { background: var(--bg); color: var(--text2); }
+
+  /* Symbols list in account cards */
+  .card-symbols {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   /* Empty state */
   .empty {
@@ -307,6 +366,32 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+
+  /* Drop overlay */
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,113,227,0.15);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .drop-overlay.active { display: flex; }
+  .drop-overlay-box {
+    background: var(--card);
+    border: 3px dashed var(--accent);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  }
+  .drop-overlay-box .drop-icon { font-size: 40px; margin-bottom: 8px; }
+  .drop-overlay-box .drop-text { font-size: 17px; font-weight: 600; color: var(--accent); }
+  .drop-overlay-box .drop-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -318,16 +403,15 @@
 
   <!-- Summary -->
   <div class="summary">
+    <div class="summary-actions">
+      <button id="refreshBtn" title="Refresh Prices"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
+      <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+      <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+    </div>
     <div class="label">Total Value</div>
     <div class="value" id="totalValue">—</div>
     <div id="summaryDelta"></div>
     <div class="sub" id="summarySubtext"></div>
-  </div>
-
-  <!-- Refresh + Share -->
-  <div class="actions">
-    <button class="btn btn-secondary" id="refreshBtn">Refresh Prices</button>
-    <button class="btn btn-secondary" id="shareBtn">Share / Backup</button>
   </div>
 
   <!-- Tabs -->
@@ -378,6 +462,15 @@
       <button class="btn btn-primary" id="accountSaveBtn" style="width:100%">Add Account</button>
     </div>
     <div class="card-list" id="accountsList"></div>
+  </div>
+</div>
+
+<!-- Drop overlay -->
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-box">
+    <div class="drop-icon">📄</div>
+    <div class="drop-text">Drop CSV to import</div>
+    <div class="drop-sub">Stock, units, desc (account)</div>
   </div>
 </div>
 
@@ -569,11 +662,10 @@
       { label: '30D', val: pd.change30d },
       { label: '1Y', val: pd.change1y },
     ];
-    const html = parts
+    return parts
       .filter(p => p.val != null)
       .map(p => `<span class="chg ${chgClass(p.val)}"><span class="chg-label">${p.label}</span> ${fmtPct(p.val)}</span>`)
-      .join('');
-    return html ? `<div class="changes">${html}</div>` : '';
+      .join(' ');
   }
 
   // =========================================================
@@ -645,7 +737,11 @@
         map[it.symbol].accounts.push(accName);
       }
     });
-    const holdings = Object.values(map).sort((a, b) => a.symbol.localeCompare(b.symbol));
+    const holdings = Object.values(map).sort((a, b) => {
+      const valA = getPrice(a.symbol) != null ? a.totalShares * getPrice(a.symbol) : 0;
+      const valB = getPrice(b.symbol) != null ? b.totalShares * getPrice(b.symbol) : 0;
+      return valB - valA;
+    });
 
     if (holdings.length === 0) {
       $holdingsList.innerHTML = '<div class="empty">No holdings yet.<br>Go to Items tab to add some.</div>';
@@ -655,26 +751,23 @@
     $holdingsList.innerHTML = holdings.map(h => {
       const p = getPrice(h.symbol);
       const mktVal = p != null ? h.totalShares * p : null;
-      const ts = getLastUpdated(h.symbol);
       const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
       const priceDelta = getSymbolPriceDelta(h.symbol);
       const valDelta = priceDelta != null ? priceDelta * h.totalShares : null;
-      const deltaHtml = valDelta != null ? `<div class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</div>` : '';
+      const deltaHtml = valDelta != null ? `<span class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+      const changes = renderChanges(h.symbol);
       return `
-        <div class="card" style="flex-wrap:wrap">
-          <div class="card-main">
-            <div class="card-title">${esc(h.symbol)}</div>
-            <div class="card-sub">
-              ${h.totalShares} shares${accText ? ' · ' + accText : ''}
-              ${ts ? ' · ' + fmtTime(ts) : ''}
-            </div>
+        <div class="card">
+          <div class="card-row1-left">
+            <span class="card-symbol">${esc(h.symbol)}</span>
+            ${changes}
           </div>
-          <div class="card-right">
-            <div class="card-price">${mktVal != null ? fmtMoney(mktVal) : '—'}</div>
+          <div class="card-row1-right">${accText}</div>
+          <div class="card-row2-left">${h.totalShares} sh · ${p != null ? fmtMoney(p) : '—'}</div>
+          <div class="card-row2-right">
+            <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
             ${deltaHtml}
-            <div class="card-mkt">${p != null ? fmtMoney(p) : ''}</div>
           </div>
-          ${renderChanges(h.symbol)}
         </div>`;
     }).join('');
   }
@@ -698,25 +791,24 @@
       const accName = getAccountName(it.accountId);
       const priceDelta = getSymbolPriceDelta(it.symbol);
       const valDelta = priceDelta != null ? priceDelta * it.shares : null;
-      const deltaHtml = valDelta != null ? `<div class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</div>` : '';
+      const deltaHtml = valDelta != null ? `<span class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+      const changes = renderChanges(it.symbol);
       return `
-        <div class="card" style="flex-wrap:wrap">
-          <div class="card-main">
-            <div class="card-title">${esc(it.symbol)}${accName ? ' <span class="badge">' + esc(accName) + '</span>' : ''}</div>
-            <div class="card-sub">
-              <span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} shares</span>
-            </div>
+        <div class="card">
+          <div class="card-row1-left">
+            <span class="card-symbol">${esc(it.symbol)}</span>
+            ${changes}
           </div>
-          <div class="card-right">
-            <div class="card-price">${mktVal != null ? fmtMoney(mktVal) : '—'}</div>
-            ${deltaHtml}
-            <div class="card-mkt">${p != null ? fmtMoney(p) : ''}</div>
-          </div>
+          <div class="card-row1-right">${accName ? '<span class="badge">' + esc(accName) + '</span>' : ''}</div>
           <div class="card-actions">
             <button class="icon-btn" data-action="edit-item" data-id="${it.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-item" data-id="${it.id}" title="Remove">×</button>
           </div>
-          ${renderChanges(it.symbol)}
+          <div class="card-row2-left"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} sh</span> · ${p != null ? fmtMoney(p) : '—'}</div>
+          <div class="card-row2-right">
+            <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
+            ${deltaHtml}
+          </div>
         </div>`;
     }).join('');
 
@@ -748,50 +840,55 @@
       return;
     }
 
-    // Compute total value per account
+    // Compute total value and symbols per account
     const totals = {};
-    accounts.forEach(a => { totals[a.id] = { value: 0, count: 0, hasPrices: true }; });
+    const acctItems = {}; // accountId -> [{ symbol, value }]
+    accounts.forEach(a => { totals[a.id] = { value: 0, count: 0, hasPrices: true }; acctItems[a.id] = []; });
     items.forEach(it => {
       if (!it.accountId) return;
       if (!totals[it.accountId]) return;
       const p = getPrice(it.symbol);
+      const val = p != null ? it.shares * p : 0;
       if (p != null) {
-        totals[it.accountId].value += it.shares * p;
+        totals[it.accountId].value += val;
       } else {
         totals[it.accountId].hasPrices = false;
       }
       totals[it.accountId].count++;
+      acctItems[it.accountId].push({ symbol: it.symbol, value: val });
     });
+
+    // Helper: get symbols sorted by value desc, deduplicated
+    function symbolList(itemArr) {
+      const map = {};
+      itemArr.forEach(i => { map[i.symbol] = (map[i.symbol] || 0) + i.value; });
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).map(e => e[0]).join(', ');
+    }
 
     // Unassigned items
     const unassigned = items.filter(it => !it.accountId);
+    const unassignedSymItems = unassigned.map(it => ({ symbol: it.symbol, value: (getPrice(it.symbol) || 0) * it.shares }));
 
-    $accountsList.innerHTML = accounts.map(a => {
+    const sortedAccounts = [...accounts].sort((a, b) => (totals[b.id].value || 0) - (totals[a.id].value || 0));
+    $accountsList.innerHTML = sortedAccounts.map(a => {
       const t = totals[a.id];
       const valStr = t.count === 0 ? '—' : (t.hasPrices ? fmtMoney(t.value) : fmtMoney(t.value) + '*');
+      const syms = symbolList(acctItems[a.id]);
       return `
         <div class="card">
-          <div class="card-main">
-            <div class="card-title">${esc(a.name)}</div>
-            <div class="card-sub">${t.count} item${t.count !== 1 ? 's' : ''}</div>
-          </div>
-          <div class="card-right">
-            <div class="card-price">${valStr}</div>
-          </div>
+          <div class="card-row1-left"><span class="card-symbol">${esc(a.name)}</span></div>
+          <div class="card-row1-right"><span class="card-value">${valStr}</span></div>
           <div class="card-actions">
             <button class="icon-btn" data-action="edit-account" data-id="${a.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-account" data-id="${a.id}" title="Remove">×</button>
           </div>
+          ${syms ? `<div class="card-symbols">${esc(syms)}</div>` : ''}
         </div>`;
     }).join('') + (unassigned.length ? `
       <div class="card" style="opacity:0.7">
-        <div class="card-main">
-          <div class="card-title">Unassigned</div>
-          <div class="card-sub">${unassigned.length} item${unassigned.length !== 1 ? 's' : ''}</div>
-        </div>
-        <div class="card-right">
-          <div class="card-price">${fmtMoney(unassigned.reduce((s, it) => { const p = getPrice(it.symbol); return s + (p != null ? it.shares * p : 0); }, 0))}</div>
-        </div>
+        <div class="card-row1-left"><span class="card-symbol">Unassigned</span></div>
+        <div class="card-row1-right"><span class="card-value">${fmtMoney(unassigned.reduce((s, it) => { const p = getPrice(it.symbol); return s + (p != null ? it.shares * p : 0); }, 0))}</span></div>
+        ${unassignedSymItems.length ? `<div class="card-symbols">${esc(symbolList(unassignedSymItems))}</div>` : ''}
       </div>` : '');
 
     $accountsList.querySelectorAll('[data-action="edit-account"]').forEach(el => {
@@ -966,6 +1063,28 @@
   }
 
   // =========================================================
+  // CLEAR ALL
+  // =========================================================
+  const $clearAllBtn = $('clearAllBtn');
+  $clearAllBtn.addEventListener('click', () => {
+    if (items.length === 0 && accounts.length === 0) {
+      showToast('Nothing to clear');
+      return;
+    }
+    const msg = `Delete ALL data?\n\n${items.length} item(s), ${accounts.length} account(s).\n\nThis cannot be undone.`;
+    if (!confirm(msg)) return;
+    items = [];
+    accounts = [];
+    prices = {};
+    prevPrices = {};
+    saveItems();
+    saveAccounts();
+    savePrices();
+    render();
+    showToast('All data cleared');
+  });
+
+  // =========================================================
   // REFRESH PRICES
   // =========================================================
   $refreshBtn.addEventListener('click', refreshPrices);
@@ -977,7 +1096,7 @@
     }
 
     $refreshBtn.disabled = true;
-    $refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing…';
+    $refreshBtn.innerHTML = '<span class="spinner"></span>';
 
     const symbols = [...new Set(items.map(it => it.symbol))];
 
@@ -1012,7 +1131,7 @@
     }
 
     $refreshBtn.disabled = false;
-    $refreshBtn.innerHTML = 'Refresh Prices';
+    $refreshBtn.innerHTML = '<svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>';
   }
 
   // CORS proxies
@@ -1212,6 +1331,117 @@
 
     render();
     showToast(`Restored ${itemCount} items`);
+  }
+
+  // =========================================================
+  // CSV IMPORT (drag & drop)
+  // =========================================================
+  const $dropOverlay = $('dropOverlay');
+  let dragCounter = 0;
+
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    $dropOverlay.classList.add('active');
+  });
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      $dropOverlay.classList.remove('active');
+    }
+  });
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    $dropOverlay.classList.remove('active');
+
+    const files = e.dataTransfer.files;
+    if (!files.length) return;
+
+    const file = files[0];
+    if (!file.name.endsWith('.csv') && !file.type.includes('csv') && !file.type.includes('text')) {
+      showToast('Please drop a CSV file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      importCSV(evt.target.result);
+    };
+    reader.readAsText(file);
+  });
+
+  function importCSV(text) {
+    const lines = text.trim().split('\n').map(l => l.trim()).filter(l => l);
+    if (lines.length < 2) {
+      showToast('CSV file is empty');
+      return;
+    }
+
+    // Parse header to find column indices
+    const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+    const symIdx = header.findIndex(h => h === 'stock' || h === 'symbol' || h === 'ticker' || h === 'etf');
+    const unitsIdx = header.findIndex(h => h === 'units' || h === 'shares' || h === 'quantity' || h === 'qty');
+    const descIdx = header.findIndex(h => h === 'desc' || h === 'description' || h === 'account' || h === 'name');
+
+    if (symIdx < 0 || unitsIdx < 0) {
+      showToast('CSV must have Stock and Units columns');
+      return;
+    }
+
+    // Parse rows
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      const symbol = (cols[symIdx] || '').toUpperCase();
+      const shares = parseFloat(cols[unitsIdx]);
+      const desc = descIdx >= 0 ? (cols[descIdx] || '').trim() : '';
+
+      if (!symbol) continue;
+      if (isNaN(shares) || shares <= 0) continue; // skip zero or invalid
+
+      rows.push({ symbol, shares, desc });
+    }
+
+    if (rows.length === 0) {
+      showToast('No valid rows found in CSV');
+      return;
+    }
+
+    // Confirm import
+    const symbolCount = new Set(rows.map(r => r.symbol)).size;
+    const msg = `Import ${rows.length} item(s) (${symbolCount} symbols) from CSV?\n\nThis will ADD to your existing portfolio.`;
+    if (!confirm(msg)) return;
+
+    // Auto-create accounts from desc column
+    const descNames = [...new Set(rows.map(r => r.desc).filter(d => d))];
+    descNames.forEach(name => {
+      if (!accounts.find(a => a.name.toLowerCase() === name.toLowerCase())) {
+        accounts.push({ id: uid(), name });
+      }
+    });
+    saveAccounts();
+
+    // Add items
+    let added = 0;
+    rows.forEach(row => {
+      const accountId = row.desc
+        ? (accounts.find(a => a.name.toLowerCase() === row.desc.toLowerCase()) || {}).id || null
+        : null;
+      items.push({ id: uid(), symbol: row.symbol, shares: row.shares, accountId });
+      added++;
+    });
+    saveItems();
+    render();
+    showToast(`Imported ${added} items`);
+
+    // Auto-refresh prices for new symbols
+    refreshPrices();
   }
 
   // =========================================================
