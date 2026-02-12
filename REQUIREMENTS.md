@@ -2,14 +2,14 @@
 
 ## Overview
 
-A mobile-first, client-side-only web app for tracking a personal stock & ETF portfolio. No backend, no build step — just a single HTML file with embedded CSS and JS that runs in a mobile browser.
+A private, mobile-first web app for tracking a personal stock & ETF portfolio. Fully client-side — no backend, no server, no accounts. Your data stays on your device. Ships as a single HTML file with embedded CSS and JS.
 
 ## Core Principles
 
-- **Zero backend** — everything runs in the browser
-- **localStorage only** — all portfolio data persists in `localStorage`
+- **Private & secure** — no server, no backend, no tracking. Your portfolio data never leaves your device.
+- **localStorage only** — all data stored locally in the browser. Nothing is sent or synced anywhere.
+- **Single file** — ship as one `index.html` (CSS & JS embedded). No build step, no dependencies.
 - **Mobile-first** — designed for phone screens; usable on desktop too
-- **Single file** — ship as one `index.html` (CSS & JS embedded)
 - **Start simple** — MVP first, iterate from there
 
 ## Data Model
@@ -52,6 +52,7 @@ Three tabs: **Holdings**, **Items**, **Accounts**
 ### 1. Holdings Tab (aggregated view)
 - Groups items by **symbol** across all accounts
 - Shows per-symbol: total shares, price, market value, account badges
+- **Tap symbol** to open its Yahoo Finance page for detailed quotes & news
 - Read-only summary — editing happens in the Items tab
 
 ### 2. Items Tab (detailed view)
