@@ -219,6 +219,13 @@
     letter-spacing: 0.3px;
     flex-shrink: 0;
   }
+  a.card-symbol {
+    color: inherit;
+    text-decoration: none;
+  }
+  a.card-symbol:active {
+    opacity: 0.5;
+  }
   .card-price {
     font-size: 13px;
     font-weight: 600;
@@ -791,7 +798,7 @@
       return `
         <div class="card">
           <div class="card-row1-left">
-            <span class="card-symbol">${esc(h.symbol)}</span>
+            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(h.symbol)}" target="_blank">${esc(h.symbol)}</a>
             <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
             <span class="card-shares">${h.totalShares} sh</span>
           </div>
@@ -829,7 +836,7 @@
       return `
         <div class="card">
           <div class="card-row1-left">
-            <span class="card-symbol">${esc(it.symbol)}</span>
+            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(it.symbol)}" target="_blank">${esc(it.symbol)}</a>
             <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
             <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} sh</span></span>
           </div>
