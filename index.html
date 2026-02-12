@@ -206,10 +206,10 @@
     align-items: center;
     gap: 2px 8px;
   }
-  /* Row 1: symbol + changes (left) | badges (right) | actions */
+  /* Row 1: symbol + price + shares (left) | badges (right) | actions */
   .card-row1-left {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 5px;
     min-width: 0;
   }
@@ -219,6 +219,21 @@
     letter-spacing: 0.3px;
     flex-shrink: 0;
   }
+  .card-price {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .card-shares {
+    font-size: 12px;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+  .card-shares .editable {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--text2);
+  }
   .card-row1-right {
     display: flex;
     align-items: center;
@@ -226,15 +241,14 @@
     justify-content: flex-end;
     flex-wrap: wrap;
   }
-  /* Row 2: shares + price (left) | value + delta (right) | actions */
+  /* Row 2: percent changes (left) | value + delta (right) */
   .card-row2-left {
     font-size: 12px;
     color: var(--text2);
     grid-column: 1;
-  }
-  .card-row2-left .editable {
-    cursor: pointer;
-    border-bottom: 1px dashed var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 3px;
   }
   .card-row2-right {
     display: flex;
@@ -520,8 +534,8 @@
   let items = load(ITEMS_KEY, []);
   // accounts: [{ id, name }]
   let accounts = load(ACCOUNTS_KEY, []);
-  // prices: { SYMBOL: { price, lastUpdated, changeDay, change30d, change1y } }
-  //   changeDay/change30d/change1y are percent values (e.g. 2.5 means +2.5%)
+  // prices: { SYMBOL: { price, lastUpdated, changeDay, change1w, change30d, change1q, change1y } }
+  //   changeDay/change1w/change30d/change1q/change1y are percent values (e.g. 2.5 means +2.5%)
   let prices = load(PRICES_KEY, {});
   // USD/ILS exchange rate
   const USDILS_KEY = 'portfolio_usdils';
@@ -667,7 +681,9 @@
     const pd = getPriceData(symbol);
     const parts = [
       { label: '1D', val: pd.changeDay },
-      { label: '30D', val: pd.change30d },
+      { label: '1W', val: pd.change1w },
+      { label: '1M', val: pd.change30d },
+      { label: '1Q', val: pd.change1q },
       { label: '1Y', val: pd.change1y },
     ];
     return parts
@@ -776,10 +792,11 @@
         <div class="card">
           <div class="card-row1-left">
             <span class="card-symbol">${esc(h.symbol)}</span>
-            ${changes}
+            <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
+            <span class="card-shares">${h.totalShares} sh</span>
           </div>
           <div class="card-row1-right">${accText}</div>
-          <div class="card-row2-left">${h.totalShares} sh · ${p != null ? fmtMoney(p) : '—'}</div>
+          <div class="card-row2-left">${changes}</div>
           <div class="card-row2-right">
             <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
             ${deltaHtml}
@@ -813,14 +830,15 @@
         <div class="card">
           <div class="card-row1-left">
             <span class="card-symbol">${esc(it.symbol)}</span>
-            ${changes}
+            <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
+            <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} sh</span></span>
           </div>
           <div class="card-row1-right">${accName ? '<span class="badge">' + esc(accName) + '</span>' : ''}</div>
           <div class="card-actions">
             <button class="icon-btn" data-action="edit-item" data-id="${it.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-item" data-id="${it.id}" title="Remove">×</button>
           </div>
-          <div class="card-row2-left"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares} sh</span> · ${p != null ? fmtMoney(p) : '—'}</div>
+          <div class="card-row2-left">${changes}</div>
           <div class="card-row2-right">
             <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
             ${deltaHtml}
@@ -1147,7 +1165,9 @@
             price: fetched[sym].price,
             lastUpdated: Date.now(),
             changeDay: fetched[sym].changeDay,
+            change1w: fetched[sym].change1w,
             change30d: fetched[sym].change30d,
+            change1q: fetched[sym].change1q,
             change1y: fetched[sym].change1y,
           };
           updated++;
@@ -1254,8 +1274,14 @@
           }
         }
 
+        // 1W: close ~7 calendar days ago
+        const close1w = closeAt(nowSec - 7 * 86400);
+
         // 30D: close ~30 calendar days ago
         const close30d = closeAt(nowSec - 30 * 86400);
+
+        // 1Q: close ~90 calendar days ago
+        const close1q = closeAt(nowSec - 90 * 86400);
 
         // 1Y: first available close in the dataset (≈1 year ago)
         let close1y = null;
@@ -1266,7 +1292,9 @@
         result[sym] = {
           price: currentPrice,
           changeDay: pctChange(closeYesterday),
+          change1w: pctChange(close1w),
           change30d: pctChange(close30d),
+          change1q: pctChange(close1q),
           change1y: pctChange(close1y),
         };
       } catch (e) {
