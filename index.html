@@ -374,6 +374,19 @@
     text-overflow: ellipsis;
   }
 
+  /* Type group headers */
+  .type-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 2px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
   /* Empty state */
   .empty {
     text-align: center;
@@ -758,6 +771,17 @@
   };
   function getHoldingGroup(symbol) { return SYMBOL_GROUPS[symbol] || symbol; }
 
+  // Holding type classification
+  const SYMBOL_TYPES = {};
+  ['SPY','CSPX.L','SCHD','QQQ','CNDX.L','VTI','VXUS','SHLD','BUZZ','ARKQ','ARKF'].forEach(s => SYMBOL_TYPES[s] = 'Stock ETFs');
+  ['TSLA','RIVN','BYDDF','QS','RBLX','TTWO','AMD','CRWV'].forEach(s => SYMBOL_TYPES[s] = 'Stocks');
+  ['SGOV','IBIT','GLDM'].forEach(s => SYMBOL_TYPES[s] = 'Other');
+  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Other', 'Unknown'];
+  function getHoldingType(syms) {
+    for (const s of syms) { if (SYMBOL_TYPES[s]) return SYMBOL_TYPES[s]; }
+    return 'Unknown';
+  }
+
   // =========================================================
   // RENDER — SUMMARY
   // =========================================================
@@ -837,57 +861,75 @@
       return;
     }
 
-    $holdingsList.innerHTML = holdings.map(h => {
+    // Compute market value for each holding (reused for sorting & display)
+    holdings.forEach(h => {
       const syms = Object.keys(h.symbols);
-      const isUnified = syms.length > 1;
-
-      // Market value: sum each sub-symbol's shares × its own price
-      let mktVal = 0;
-      let hasAnyPrice = false;
+      let mktVal = 0, hasAnyPrice = false;
       syms.forEach(sym => {
         const p = getPrice(sym);
         if (p != null) { mktVal += h.symbols[sym] * p; hasAnyPrice = true; }
       });
-      if (!hasAnyPrice) mktVal = null;
+      h.mktVal = hasAnyPrice ? mktVal : null;
+      h.type = getHoldingType(syms);
+    });
 
-      // Delta: sum each sub-symbol's price delta × its shares
-      let valDelta = 0;
-      let hasAnyDelta = false;
-      syms.forEach(sym => {
-        const d = getSymbolPriceDelta(sym);
-        if (d != null) { valDelta += d * h.symbols[sym]; hasAnyDelta = true; }
-      });
-      if (!hasAnyDelta) valDelta = null;
+    // Group by type, ordered by TYPE_ORDER
+    const grouped = {};
+    holdings.forEach(h => {
+      if (!grouped[h.type]) grouped[h.type] = [];
+      grouped[h.type].push(h);
+    });
+    const orderedTypes = TYPE_ORDER.filter(t => grouped[t]);
 
-      const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
-      const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
+    let html = '';
+    orderedTypes.forEach(type => {
+      const group = grouped[type];
+      const groupVal = group.reduce((s, h) => s + (h.mktVal || 0), 0);
+      const hasAnyVal = group.some(h => h.mktVal != null);
+      html += `<div class="type-header"><span>${esc(type)}</span><span>${hasAnyVal ? fmtMoney(groupVal) : '—'}</span></div>`;
+      html += group.map(h => {
+        const syms = Object.keys(h.symbols);
+        const isUnified = syms.length > 1;
 
-      // For unified holdings, use the first symbol for changes display & Yahoo link
-      const primarySym = syms[0];
-      const changes = renderChanges(primarySym);
+        // Delta: sum each sub-symbol's price delta × its shares
+        let valDelta = 0, hasAnyDelta = false;
+        syms.forEach(sym => {
+          const d = getSymbolPriceDelta(sym);
+          if (d != null) { valDelta += d * h.symbols[sym]; hasAnyDelta = true; }
+        });
+        if (!hasAnyDelta) valDelta = null;
 
-      // Price / shares display (omit for unified holdings)
-      let priceSharesHtml = '';
-      if (!isUnified) {
-        const p = getPrice(primarySym);
-        const totalShares = h.symbols[primarySym];
-        priceSharesHtml = `<span class="card-price">${p != null ? fmtMoney(p) : '—'}</span> <span class="card-shares">${totalShares}</span>`;
-      }
+        const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+        const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
 
-      return `
-        <div class="card">
-          <div class="card-row1-left">
-            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(primarySym)}" target="_blank">${esc(h.group)}</a>
-            ${priceSharesHtml}
-          </div>
-          <div class="card-row1-right">${accText}</div>
-          <div class="card-row2-left">${changes}</div>
-          <div class="card-row2-right">
-            <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
-            ${deltaHtml}
-          </div>
-        </div>`;
-    }).join('');
+        const primarySym = syms[0];
+        const changes = renderChanges(primarySym);
+
+        // Price / shares display (omit for unified holdings)
+        let priceSharesHtml = '';
+        if (!isUnified) {
+          const p = getPrice(primarySym);
+          const totalShares = h.symbols[primarySym];
+          priceSharesHtml = `<span class="card-price">${p != null ? fmtMoney(p) : '—'}</span> <span class="card-shares">${totalShares}</span>`;
+        }
+
+        return `
+          <div class="card">
+            <div class="card-row1-left">
+              <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(primarySym)}" target="_blank">${esc(h.group)}</a>
+              ${priceSharesHtml}
+            </div>
+            <div class="card-row1-right">${accText}</div>
+            <div class="card-row2-left">${changes}</div>
+            <div class="card-row2-right">
+              <span class="card-value">${h.mktVal != null ? fmtMoney(h.mktVal) : '—'}</span>
+              ${deltaHtml}
+            </div>
+          </div>`;
+      }).join('');
+    });
+
+    $holdingsList.innerHTML = html;
   }
 
   // =========================================================
