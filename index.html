@@ -1351,16 +1351,48 @@
   }
 
   // =========================================================
-  // SHARE / BACKUP (encode state in URL)
+  // SHARE / BACKUP (compact URL encoding)
   // =========================================================
+  // Format: #p=<compact>
+  // Compact: accountNames joined by "|", then "~", then items as "SYM:shares:acctIdx" joined by ";"
+  // Account index is position in accounts list (empty = no account). Prices are omitted (re-fetched).
   const $shareBtn = $('shareBtn');
   $shareBtn.addEventListener('click', sharePortfolio);
 
+  function encodePortfolio() {
+    const acctNames = accounts.map(a => a.name);
+    const acctIdToIdx = {};
+    accounts.forEach((a, i) => { acctIdToIdx[String(a.id)] = i; });
+    const itemParts = items.map(it => {
+      const idx = it.accountId != null && acctIdToIdx[String(it.accountId)] != null
+        ? acctIdToIdx[String(it.accountId)]
+        : '';
+      return it.symbol + ':' + it.shares + ':' + idx;
+    });
+    return acctNames.join('|') + '~' + itemParts.join(';');
+  }
+
+  function decodePortfolio(str) {
+    const [acctPart, itemPart] = str.split('~');
+    const acctNames = acctPart ? acctPart.split('|').filter(n => n) : [];
+    const newAccounts = acctNames.map(name => ({ id: uid(), name }));
+    const newItems = [];
+    if (itemPart) {
+      itemPart.split(';').filter(s => s).forEach(seg => {
+        const [symbol, sharesStr, idxStr] = seg.split(':');
+        if (!symbol) return;
+        const shares = parseFloat(sharesStr) || 0;
+        const acctIdx = idxStr !== '' ? parseInt(idxStr) : -1;
+        const accountId = acctIdx >= 0 && acctIdx < newAccounts.length ? newAccounts[acctIdx].id : null;
+        newItems.push({ id: uid(), symbol, shares, accountId });
+      });
+    }
+    return { items: newItems, accounts: newAccounts };
+  }
+
   function sharePortfolio() {
-    const payload = { items, accounts, prices };
-    const json = JSON.stringify(payload);
-    const encoded = btoa(unescape(encodeURIComponent(json)));
-    const url = location.origin + location.pathname + '?data=' + encoded;
+    const encoded = encodePortfolio();
+    const url = location.origin + location.pathname + '#p=' + encodeURIComponent(encoded);
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => {
@@ -1394,6 +1426,23 @@
   // RESTORE FROM URL
   // =========================================================
   function checkUrlRestore() {
+    // New compact format: #p=...
+    const hash = location.hash;
+    if (hash.startsWith('#p=')) {
+      const encoded = decodeURIComponent(hash.slice(3));
+      let payload;
+      try {
+        payload = decodePortfolio(encoded);
+      } catch (e) {
+        console.error('Failed to parse backup URL:', e);
+        showToast('Invalid backup link');
+        return;
+      }
+      restorePayload(payload);
+      return;
+    }
+
+    // Legacy format: ?data=... (base64 JSON)
     const params = new URLSearchParams(location.search);
     const dataParam = params.get('data');
     if (!dataParam) return;
@@ -1412,18 +1461,20 @@
       showToast('Invalid backup data');
       return;
     }
+    restorePayload(payload);
+  }
 
-    const itemCount = payload.items.length;
+  function restorePayload(payload) {
+    const itemCount = (payload.items || []).length;
     const accountCount = (payload.accounts || []).length;
     const msg = `Restore portfolio from backup?\n\n${itemCount} item(s), ${accountCount} account(s).\n\nThis will REPLACE your current data.`;
 
     if (!confirm(msg)) {
-      // Clear query string so it doesn't ask again on reload
       history.replaceState(null, '', location.pathname);
       return;
     }
 
-    items = payload.items;
+    items = payload.items || [];
     accounts = payload.accounts || [];
     prices = payload.prices || {};
     prevPrices = {};
@@ -1433,7 +1484,7 @@
     savePrices();
     saveUsdIls();
 
-    // Clear query string
+    // Clear URL
     history.replaceState(null, '', location.pathname);
 
     render();
