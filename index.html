@@ -751,6 +751,13 @@
     });
   });
 
+  // Unified holdings: symbols that should be grouped together
+  const SYMBOL_GROUPS = {
+    'SPY': 'SPY/CSPX', 'CSPX.L': 'SPY/CSPX',
+    'QQQ': 'QQQ/CNDX', 'CNDX.L': 'QQQ/CNDX',
+  };
+  function getHoldingGroup(symbol) { return SYMBOL_GROUPS[symbol] || symbol; }
+
   // =========================================================
   // RENDER — SUMMARY
   // =========================================================
@@ -759,7 +766,7 @@
     let hasAllPrices = true;
     const symbols = new Set();
     items.forEach(it => {
-      symbols.add(it.symbol);
+      symbols.add(getHoldingGroup(it.symbol));
       const p = getPrice(it.symbol);
       if (p != null) {
         total += it.shares * p;
@@ -803,21 +810,26 @@
   // =========================================================
   // RENDER — HOLDINGS TAB (aggregated by symbol)
   // =========================================================
+
   function renderHoldings() {
-    // Aggregate by symbol
+    // Aggregate by holding group (unified symbols)
     const map = {};
     items.forEach(it => {
-      if (!map[it.symbol]) map[it.symbol] = { symbol: it.symbol, totalShares: 0, accounts: [] };
-      map[it.symbol].totalShares += it.shares;
+      const group = getHoldingGroup(it.symbol);
+      if (!map[group]) map[group] = { group: group, symbols: {}, accounts: [] };
+      if (!map[group].symbols[it.symbol]) map[group].symbols[it.symbol] = 0;
+      map[group].symbols[it.symbol] += it.shares;
       const accName = getAccountName(it.accountId);
-      if (accName && !map[it.symbol].accounts.includes(accName)) {
-        map[it.symbol].accounts.push(accName);
+      if (accName && !map[group].accounts.includes(accName)) {
+        map[group].accounts.push(accName);
       }
     });
     const holdings = Object.values(map).sort((a, b) => {
-      const valA = getPrice(a.symbol) != null ? a.totalShares * getPrice(a.symbol) : 0;
-      const valB = getPrice(b.symbol) != null ? b.totalShares * getPrice(b.symbol) : 0;
-      return valB - valA;
+      const valOf = h => Object.entries(h.symbols).reduce((sum, [sym, sh]) => {
+        const p = getPrice(sym);
+        return sum + (p != null ? sh * p : 0);
+      }, 0);
+      return valOf(b) - valOf(a);
     });
 
     if (holdings.length === 0) {
@@ -826,19 +838,47 @@
     }
 
     $holdingsList.innerHTML = holdings.map(h => {
-      const p = getPrice(h.symbol);
-      const mktVal = p != null ? h.totalShares * p : null;
-      const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
-      const priceDelta = getSymbolPriceDelta(h.symbol);
-      const valDelta = priceDelta != null ? priceDelta * h.totalShares : null;
+      const syms = Object.keys(h.symbols);
+      const isUnified = syms.length > 1;
+
+      // Market value: sum each sub-symbol's shares × its own price
+      let mktVal = 0;
+      let hasAnyPrice = false;
+      syms.forEach(sym => {
+        const p = getPrice(sym);
+        if (p != null) { mktVal += h.symbols[sym] * p; hasAnyPrice = true; }
+      });
+      if (!hasAnyPrice) mktVal = null;
+
+      // Delta: sum each sub-symbol's price delta × its shares
+      let valDelta = 0;
+      let hasAnyDelta = false;
+      syms.forEach(sym => {
+        const d = getSymbolPriceDelta(sym);
+        if (d != null) { valDelta += d * h.symbols[sym]; hasAnyDelta = true; }
+      });
+      if (!hasAnyDelta) valDelta = null;
+
       const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
-      const changes = renderChanges(h.symbol);
+      const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
+
+      // For unified holdings, use the first symbol for changes display & Yahoo link
+      const primarySym = syms[0];
+      const changes = renderChanges(primarySym);
+
+      // Price / shares display (omit for unified holdings)
+      let priceSharesHtml = '';
+      if (!isUnified) {
+        const p = getPrice(primarySym);
+        const totalShares = h.symbols[primarySym];
+        priceSharesHtml = `<span class="card-price">${p != null ? fmtMoney(p) : '—'}</span> <span class="card-shares">${totalShares}</span>`;
+      }
+
       return `
         <div class="card">
           <div class="card-row1-left">
-            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(h.symbol)}" target="_blank">${esc(h.symbol)}</a>
-            <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
-            <span class="card-shares">${h.totalShares}</span>
+            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(primarySym)}" target="_blank">${esc(h.group)}</a>
+            ${priceSharesHtml}
           </div>
           <div class="card-row1-right">${accText}</div>
           <div class="card-row2-left">${changes}</div>
