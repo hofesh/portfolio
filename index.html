@@ -269,6 +269,14 @@
     align-items: center;
     gap: 4px;
     justify-content: flex-end;
+    position: relative;
+  }
+  .delta-under {
+    position: absolute;
+    top: calc(100% - 4px);
+    right: 0;
+    white-space: nowrap;
+    line-height: 1;
   }
   .card-value {
     font-size: 15px;
@@ -334,9 +342,27 @@
     font-weight: 500;
     opacity: 0.7;
   }
-  .chg-up { background: rgba(52,199,89,0.12); color: #1a8f3c; }
-  .chg-down { background: rgba(255,59,48,0.10); color: #d62c20; }
   .chg-flat { background: var(--bg); color: var(--text2); }
+  /* Up: 0–2%  — whisper */
+  .chg-up-1 { background: #eef9f0; color: #1e7e34; }
+  /* Up: 2–5%  — light */
+  .chg-up-2 { background: #dcf2df; color: #1a7030; }
+  /* Up: 5–10% — medium */
+  .chg-up-3 { background: #b8e6be; color: #15612a; }
+  /* Up: 10–20% — bold */
+  .chg-up-4 { background: #82d48e; color: #0e4a1f; }
+  /* Up: 20%+  — vivid */
+  .chg-up-5 { background: #34a853; color: #fff; }
+  /* Down: 0–2%  — whisper */
+  .chg-down-1 { background: #fef0ef; color: #a1302a; }
+  /* Down: 2–5%  — light */
+  .chg-down-2 { background: #fddcda; color: #962820; }
+  /* Down: 5–10% — medium */
+  .chg-down-3 { background: #f9b8b3; color: #8b1e15; }
+  /* Down: 10–20% — bold */
+  .chg-down-4 { background: #ef7a71; color: #5c110b; }
+  /* Down: 20%+  — vivid */
+  .chg-down-5 { background: #d93025; color: #fff; }
 
   /* Symbols list in account cards */
   .card-symbols {
@@ -687,9 +713,14 @@
   }
   function chgClass(n) {
     if (n == null || isNaN(n)) return 'chg-flat';
-    if (n > 0.05) return 'chg-up';
-    if (n < -0.05) return 'chg-down';
-    return 'chg-flat';
+    const abs = Math.abs(n);
+    if (abs < 0.05) return 'chg-flat';
+    const dir = n > 0 ? 'up' : 'down';
+    if (abs < 2)  return 'chg-' + dir + '-1';
+    if (abs < 5)  return 'chg-' + dir + '-2';
+    if (abs < 10) return 'chg-' + dir + '-3';
+    if (abs < 20) return 'chg-' + dir + '-4';
+    return 'chg-' + dir + '-5';
   }
   function renderChanges(symbol) {
     const pd = getPriceData(symbol);
@@ -800,7 +831,7 @@
       const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
       const priceDelta = getSymbolPriceDelta(h.symbol);
       const valDelta = priceDelta != null ? priceDelta * h.totalShares : null;
-      const deltaHtml = valDelta != null ? `<span class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+      const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
       const changes = renderChanges(h.symbol);
       return `
         <div class="card">
@@ -838,7 +869,7 @@
       const accName = getAccountName(it.accountId);
       const priceDelta = getSymbolPriceDelta(it.symbol);
       const valDelta = priceDelta != null ? priceDelta * it.shares : null;
-      const deltaHtml = valDelta != null ? `<span class="delta-sm ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+      const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
       const changes = renderChanges(it.symbol);
       return `
         <div class="card">
