@@ -282,6 +282,7 @@
     font-size: 15px;
     font-weight: 600;
   }
+  .val-toggle { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .card-actions {
     display: flex;
     gap: 0;
@@ -474,7 +475,7 @@
       <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
       <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>
-    <div class="value" id="totalValue">—</div>
+    <div class="value val-toggle" id="totalValue">—</div>
     <div id="summaryDelta"></div>
     <div class="sub" id="monthlyIncome"></div>
     <div class="sub" id="summarySubtext"></div>
@@ -659,6 +660,10 @@
     if (n == null || isNaN(n)) return '—';
     return '$' + Math.round(Number(n)).toLocaleString('en-US');
   }
+  function fmtPctOf(value, total) {
+    if (value == null || isNaN(value) || !total) return '—';
+    return ((value / total) * 100).toFixed(1) + '%';
+  }
   function fmtILS(n) {
     if (n == null || isNaN(n)) return '—';
     return '₪' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -679,6 +684,7 @@
   // =========================================================
   // Stores the value snapshot from before the last refresh
   let prevPrices = {}; // { SYMBOL: price } — prices before last refresh
+  let showPct = load('portfolio_showPct', false); // toggle: show values as % of portfolio
 
   function computeTotalValue() {
     let total = 0;
@@ -862,6 +868,8 @@
       return;
     }
 
+    const portfolioTotal = computeTotalValue();
+
     // Compute market value for each holding (reused for sorting & display)
     holdings.forEach(h => {
       const syms = Object.keys(h.symbols);
@@ -887,7 +895,7 @@
       const group = grouped[type];
       const groupVal = group.reduce((s, h) => s + (h.mktVal || 0), 0);
       const hasAnyVal = group.some(h => h.mktVal != null);
-      html += `<div class="type-header"><span>${esc(type)}</span><span>${hasAnyVal ? fmtMoney(groupVal) : '—'}</span></div>`;
+      html += `<div class="type-header"><span>${esc(type)}</span><span class="val-toggle">${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}</span></div>`;
       html += group.map(h => {
         const syms = Object.keys(h.symbols);
         const isUnified = syms.length > 1;
@@ -923,7 +931,7 @@
             <div class="card-row1-right">${accText}</div>
             <div class="card-row2-left">${changes}</div>
             <div class="card-row2-right">
-              <span class="card-value">${h.mktVal != null ? fmtMoney(h.mktVal) : '—'}</span>
+              <span class="card-value val-toggle">${h.mktVal != null ? (showPct ? fmtPctOf(h.mktVal, portfolioTotal) : fmtMoney(h.mktVal)) : '—'}</span>
               ${deltaHtml}
             </div>
           </div>`;
@@ -944,6 +952,7 @@
       return;
     }
 
+    const portfolioTotal = computeTotalValue();
     const sorted = [...items].sort((a, b) => a.symbol.localeCompare(b.symbol) || (getAccountName(a.accountId) || '').localeCompare(getAccountName(b.accountId) || ''));
 
     $itemsList.innerHTML = sorted.map(it => {
@@ -968,7 +977,7 @@
           </div>
           <div class="card-row2-left">${changes}</div>
           <div class="card-row2-right">
-            <span class="card-value">${mktVal != null ? fmtMoney(mktVal) : '—'}</span>
+            <span class="card-value val-toggle">${mktVal != null ? (showPct ? fmtPctOf(mktVal, portfolioTotal) : fmtMoney(mktVal)) : '—'}</span>
             ${deltaHtml}
           </div>
         </div>`;
@@ -1002,6 +1011,8 @@
       return;
     }
 
+    const portfolioTotal = computeTotalValue();
+
     // Compute total value and symbols per account
     const totals = {};
     const acctItems = {}; // accountId -> [{ symbol, value }]
@@ -1030,16 +1041,17 @@
     // Unassigned items
     const unassigned = items.filter(it => !it.accountId);
     const unassignedSymItems = unassigned.map(it => ({ symbol: it.symbol, value: (getPrice(it.symbol) || 0) * it.shares }));
+    const unassignedVal = unassigned.reduce((s, it) => { const p = getPrice(it.symbol); return s + (p != null ? it.shares * p : 0); }, 0);
 
     const sortedAccounts = [...accounts].sort((a, b) => (totals[b.id].value || 0) - (totals[a.id].value || 0));
     $accountsList.innerHTML = sortedAccounts.map(a => {
       const t = totals[a.id];
-      const valStr = t.count === 0 ? '—' : (t.hasPrices ? fmtMoney(t.value) : fmtMoney(t.value) + '*');
+      const valStr = t.count === 0 ? '—' : (showPct ? fmtPctOf(t.value, portfolioTotal) : (t.hasPrices ? fmtMoney(t.value) : fmtMoney(t.value) + '*'));
       const syms = symbolList(acctItems[a.id]);
       return `
         <div class="card">
           <div class="card-row1-left"><span class="card-symbol">${esc(a.name)}</span></div>
-          <div class="card-row1-right"><span class="card-value">${valStr}</span></div>
+          <div class="card-row1-right"><span class="card-value val-toggle">${valStr}</span></div>
           <div class="card-actions">
             <button class="icon-btn" data-action="edit-account" data-id="${a.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-account" data-id="${a.id}" title="Remove">×</button>
@@ -1049,7 +1061,7 @@
     }).join('') + (unassigned.length ? `
       <div class="card" style="opacity:0.7">
         <div class="card-row1-left"><span class="card-symbol">Unassigned</span></div>
-        <div class="card-row1-right"><span class="card-value">${fmtMoney(unassigned.reduce((s, it) => { const p = getPrice(it.symbol); return s + (p != null ? it.shares * p : 0); }, 0))}</span></div>
+        <div class="card-row1-right"><span class="card-value val-toggle">${showPct ? fmtPctOf(unassignedVal, portfolioTotal) : fmtMoney(unassignedVal)}</span></div>
         ${unassignedSymItems.length ? `<div class="card-symbols">${esc(symbolList(unassignedSymItems))}</div>` : ''}
       </div>` : '');
 
@@ -1698,6 +1710,17 @@
     // Auto-refresh prices for new symbols
     refreshPrices();
   }
+
+  // =========================================================
+  // TOGGLE: SHOW VALUES AS % OF PORTFOLIO
+  // =========================================================
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.val-toggle')) {
+      showPct = !showPct;
+      save('portfolio_showPct', showPct);
+      render();
+    }
+  });
 
   // =========================================================
   // INIT
