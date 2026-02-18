@@ -710,7 +710,7 @@
 
   function fmtDelta(delta) {
     if (delta == null || isNaN(delta)) return '';
-    const sign = delta >= 0 ? '+' : '';
+    const sign = delta >= 0 ? '+' : '-';
     return sign + '$' + Math.round(Math.abs(delta)).toLocaleString('en-US');
   }
 
@@ -899,7 +899,15 @@
       const group = grouped[type];
       const groupVal = group.reduce((s, h) => s + (h.mktVal || 0), 0);
       const hasAnyVal = group.some(h => h.mktVal != null);
-      html += `<div class="type-header"><span>${esc(type)}</span><span class="val-toggle">${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}</span></div>`;
+      let groupDelta = 0, hasGroupDelta = false;
+      group.forEach(h => {
+        Object.entries(h.symbols).forEach(([sym, sh]) => {
+          const d = getSymbolPriceDelta(sym);
+          if (d != null) { groupDelta += d * sh; hasGroupDelta = true; }
+        });
+      });
+      const groupDeltaHtml = hasGroupDelta ? ` <span class="delta-sm ${deltaClass(groupDelta)}">${fmtDelta(groupDelta)}</span>` : '';
+      html += `<div class="type-header"><span>${esc(type)}</span><span class="val-toggle">${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}${groupDeltaHtml}</span></div>`;
       html += group.map(h => {
         const syms = Object.keys(h.symbols);
         const isUnified = syms.length > 1;
