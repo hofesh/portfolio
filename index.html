@@ -472,6 +472,7 @@
   <div class="summary">
     <div class="summary-actions">
       <button id="refreshBtn" title="Refresh Prices"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
+      <button id="resetBaselineBtn" title="Reset Delta Baseline"><svg viewBox="0 0 24 24" style="pointer-events:none"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/></svg></button>
       <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
       <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>
@@ -554,6 +555,7 @@
   const ITEMS_KEY = 'portfolio_items';
   const ACCOUNTS_KEY = 'portfolio_accounts';
   const PRICES_KEY = 'portfolio_prices';
+  const PREV_PRICES_KEY = 'portfolio_prevPrices';
 
   function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -599,6 +601,7 @@
   function saveAccounts() { save(ACCOUNTS_KEY, accounts); }
   function savePrices() { save(PRICES_KEY, prices); }
   function saveUsdIls() { save(USDILS_KEY, usdIlsRate); }
+  function savePrevPrices() { save(PREV_PRICES_KEY, prevPrices); }
 
   function getPrice(symbol) {
     const p = prices[symbol];
@@ -626,6 +629,7 @@
   const $monthlyIncome = $('monthlyIncome');
   const $summarySubtext = $('summarySubtext');
   const $refreshBtn = $('refreshBtn');
+  const $resetBaselineBtn = $('resetBaselineBtn');
   const $holdingsList = $('holdingsList');
   const $addItemBtn = $('addItemBtn');
   const $addItemForm = $('addItemForm');
@@ -683,7 +687,7 @@
   // DELTA TRACKING (change since last refresh)
   // =========================================================
   // Stores the value snapshot from before the last refresh
-  let prevPrices = {}; // { SYMBOL: price } — prices before last refresh
+  let prevPrices = load(PREV_PRICES_KEY, {});
   let showPct = load('portfolio_showPct', false); // toggle: show values as % of portfolio
 
   function computeTotalValue() {
@@ -1256,6 +1260,7 @@
     saveAccounts();
     savePrices();
     saveUsdIls();
+    savePrevPrices();
     render();
     showToast('All data cleared');
   });
@@ -1264,6 +1269,20 @@
   // REFRESH PRICES
   // =========================================================
   $refreshBtn.addEventListener('click', refreshPrices);
+  $resetBaselineBtn.addEventListener('click', resetBaseline);
+
+  function resetBaseline() {
+    if (items.length === 0) { showToast('Add some items first'); return; }
+    const symbols = [...new Set(items.map(it => it.symbol))];
+    prevPrices = {};
+    symbols.forEach(sym => {
+      const p = getPrice(sym);
+      if (p != null) prevPrices[sym] = p;
+    });
+    savePrevPrices();
+    render();
+    showToast('Delta baseline reset');
+  }
 
   async function refreshPrices() {
     if (items.length === 0) {
@@ -1275,13 +1294,6 @@
     $refreshBtn.innerHTML = '<span class="spinner"></span>';
 
     const symbols = [...new Set(items.map(it => it.symbol))];
-
-    // Snapshot current prices before refresh
-    prevPrices = {};
-    symbols.forEach(sym => {
-      const p = getPrice(sym);
-      if (p != null) prevPrices[sym] = p;
-    });
 
     try {
       // Fetch stock prices and USD/ILS rate in parallel
@@ -1589,6 +1601,7 @@
     saveAccounts();
     savePrices();
     saveUsdIls();
+    savePrevPrices();
 
     // Clear URL
     history.replaceState(null, '', location.pathname);
