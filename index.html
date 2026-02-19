@@ -60,6 +60,17 @@
   }
   .summary .value { font-size: 26px; font-weight: 700; }
   .summary .sub { font-size: 13px; opacity: 0.8; margin-top: 1px; }
+  .summary-deltas {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.95;
+    margin-top: 2px;
+  }
+  .summary-deltas .sep {
+    opacity: 0.4;
+  }
   .summary-actions {
     position: absolute;
     top: 12px;
@@ -263,6 +274,15 @@
     display: flex;
     align-items: center;
     gap: 3px;
+    position: relative;
+  }
+  .delta-under-left.delta-sm {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 0;
+    white-space: nowrap;
+    line-height: 1;
+    font-size: 9px;
   }
   .card-row2-right {
     display: flex;
@@ -386,6 +406,14 @@
     color: var(--text2);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+  .type-header-1d {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 5px;
+    display: inline;
   }
 
   /* Empty state */
@@ -745,6 +773,20 @@
     if (abs < 20) return 'chg-' + dir + '-4';
     return 'chg-' + dir + '-5';
   }
+  function compute1dDollarChange(symbolSharesMap) {
+    let total = 0, hasAny = false;
+    for (const [sym, shares] of Object.entries(symbolSharesMap)) {
+      const pd = getPriceData(sym);
+      const price = getPrice(sym);
+      if (pd.changeDay != null && price != null) {
+        const prevClose = price / (1 + pd.changeDay / 100);
+        total += shares * (price - prevClose);
+        hasAny = true;
+      }
+    }
+    return hasAny ? total : null;
+  }
+
   function renderChanges(symbol) {
     const pd = getPriceData(symbol);
     const parts = [
@@ -812,17 +854,35 @@
     });
     $totalValue.textContent = items.length === 0 ? '—' : (hasAllPrices ? fmtMoney(total) : fmtMoney(total) + '*');
 
-    // Show delta from last refresh
+    // Compute 1D change for whole portfolio
+    const allSymShares = {};
+    items.forEach(it => {
+      allSymShares[it.symbol] = (allSymShares[it.symbol] || 0) + it.shares;
+    });
+    const total1d = compute1dDollarChange(allSymShares);
+    const total1dPrevVal = total1d != null ? total - total1d : null;
+    const total1dPct = total1dPrevVal ? ((total1d / total1dPrevVal) * 100) : null;
+
+    // Compute reset delta
     const hasPrev = Object.keys(prevPrices).length > 0;
+    let resetDelta = null, resetPct = null;
     if (hasPrev && items.length > 0) {
       const prevTotal = computeTotalWithPrices(prevPrices);
-      const delta = total - prevTotal;
-      const pct = prevTotal ? ((delta / prevTotal) * 100) : 0;
-      const sign = delta >= 0 ? '+' : '';
-      $summaryDelta.innerHTML = `<span style="font-size:14px;font-weight:600;opacity:0.95">${fmtDelta(delta)} (${sign}${pct.toFixed(2)}%)</span>`;
-    } else {
-      $summaryDelta.innerHTML = '';
+      resetDelta = total - prevTotal;
+      resetPct = prevTotal ? ((resetDelta / prevTotal) * 100) : 0;
     }
+
+    // Render both on the same row
+    const deltaParts = [];
+    if (total1d != null && total1dPct != null && items.length > 0) {
+      const sign1d = total1dPct >= 0 ? '+' : '';
+      deltaParts.push(`<span>1D: ${fmtDelta(total1d)} (${sign1d}${total1dPct.toFixed(2)}%)</span>`);
+    }
+    if (resetDelta != null) {
+      const signR = resetPct >= 0 ? '+' : '';
+      deltaParts.push(`<span>Δ: ${fmtDelta(resetDelta)} (${signR}${resetPct.toFixed(2)}%)</span>`);
+    }
+    $summaryDelta.innerHTML = deltaParts.length ? `<div class="summary-deltas">${deltaParts.join('<span class="sep">|</span>')}</div>` : '';
 
     // Monthly income (3% net SWR, after tax)
     if (items.length > 0 && total > 0 && usdIlsRate) {
@@ -885,6 +945,7 @@
       });
       h.mktVal = hasAnyPrice ? mktVal : null;
       h.type = getHoldingType(syms);
+      h.dayDollarChange = compute1dDollarChange(h.symbols);
     });
 
     // Group by type, ordered by TYPE_ORDER
@@ -908,7 +969,12 @@
         });
       });
       const groupDeltaHtml = hasGroupDelta ? ` <span class="delta-sm ${deltaClass(groupDelta)}">${fmtDelta(groupDelta)}</span>` : '';
-      html += `<div class="type-header"><span>${esc(type)}</span><span class="val-toggle">${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}${groupDeltaHtml}</span></div>`;
+      let group1dDollar = 0, hasGroup1d = false;
+      group.forEach(h => {
+        if (h.dayDollarChange != null) { group1dDollar += h.dayDollarChange; hasGroup1d = true; }
+      });
+      const group1dHtml = hasGroup1d ? `<span class="type-header-1d ${deltaClass(group1dDollar)}">${fmtDelta(group1dDollar)}</span>` : '';
+      html += `<div class="type-header"><span>${esc(type)}${group1dHtml}</span><span class="val-toggle">${groupDeltaHtml} ${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}</span></div>`;
       html += group.map(h => {
         const syms = Object.keys(h.symbols);
         const isUnified = syms.length > 1;
@@ -926,6 +992,7 @@
 
         const primarySym = syms[0];
         const changes = renderChanges(primarySym);
+        const day1dHtml = h.dayDollarChange != null ? `<span class="delta-sm delta-under-left ${deltaClass(h.dayDollarChange)}">${fmtDelta(h.dayDollarChange)}</span>` : '';
 
         // Price / shares display (omit for unified holdings)
         let priceSharesHtml = '';
@@ -942,7 +1009,7 @@
               ${priceSharesHtml}
             </div>
             <div class="card-row1-right">${accText}</div>
-            <div class="card-row2-left">${changes}</div>
+            <div class="card-row2-left">${changes}${day1dHtml}</div>
             <div class="card-row2-right">
               <span class="card-value val-toggle">${h.mktVal != null ? (showPct ? fmtPctOf(h.mktVal, portfolioTotal) : fmtMoney(h.mktVal)) : '—'}</span>
               ${deltaHtml}
@@ -975,6 +1042,8 @@
       const priceDelta = getSymbolPriceDelta(it.symbol);
       const valDelta = priceDelta != null ? priceDelta * it.shares : null;
       const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
+      const day1dDollar = compute1dDollarChange({ [it.symbol]: it.shares });
+      const day1dHtml = day1dDollar != null ? `<span class="delta-sm delta-under-left ${deltaClass(day1dDollar)}">${fmtDelta(day1dDollar)}</span>` : '';
       const changes = renderChanges(it.symbol);
       return `
         <div class="card">
@@ -988,7 +1057,7 @@
             <button class="icon-btn" data-action="edit-item" data-id="${it.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-item" data-id="${it.id}" title="Remove">×</button>
           </div>
-          <div class="card-row2-left">${changes}</div>
+          <div class="card-row2-left">${changes}${day1dHtml}</div>
           <div class="card-row2-right">
             <span class="card-value val-toggle">${mktVal != null ? (showPct ? fmtPctOf(mktVal, portfolioTotal) : fmtMoney(mktVal)) : '—'}</span>
             ${deltaHtml}
