@@ -786,8 +786,9 @@
   ['SPY','CSPX.L','SCHD','QQQ','CNDX.L','VTI','VXUS','SHLD','BUZZ','ARKQ','ARKF'].forEach(s => SYMBOL_TYPES[s] = 'Stock ETFs');
   ['TSLA','RIVN','BYDDF','QS','RBLX','TTWO','AMD','CRWV'].forEach(s => SYMBOL_TYPES[s] = 'Stocks');
   ['IBIT'].forEach(s => SYMBOL_TYPES[s] = 'Other');
-  ['SGOV','GLDM','TLT','BTAL','DBMF','TAIL','SJB','XLE','PXE','JETD'].forEach(s => SYMBOL_TYPES[s] = 'Hedge');
-  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Hedge', 'Other', 'Unknown'];
+  ['SGOV','GLDM','TLT','BTAL','DBMF','TAIL','SJB'].forEach(s => SYMBOL_TYPES[s] = 'Hedge');
+  ['JETD','PXE','XLE','FRO','INSW','STNG'].forEach(s => SYMBOL_TYPES[s] = 'Hedge Equities');
+  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Hedge', 'Hedge Equities', 'Other', 'Unknown'];
   function getHoldingType(syms) {
     for (const s of syms) { if (SYMBOL_TYPES[s]) return SYMBOL_TYPES[s]; }
     return 'Unknown';
