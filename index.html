@@ -37,7 +37,7 @@
   .container {
     max-width: 480px;
     margin: 0 auto;
-    padding: 12px 16px;
+    padding: 12px 8px;
     padding-bottom: 80px;
   }
 
@@ -210,7 +210,7 @@
   .card {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 8px 12px;
+    padding: 8px 6px;
     box-shadow: var(--shadow);
     display: grid;
     grid-template-columns: 1fr auto auto;
@@ -354,7 +354,7 @@
   .chg {
     font-size: 10px;
     font-weight: 600;
-    padding: 1px 4px;
+    padding: 1px 2px;
     border-radius: 3px;
     white-space: nowrap;
     display: inline-block;
@@ -584,6 +584,7 @@
   const ACCOUNTS_KEY = 'portfolio_accounts';
   const PRICES_KEY = 'portfolio_prices';
   const PREV_PRICES_KEY = 'portfolio_prevPrices';
+  const PREV_TOTAL_KEY = 'portfolio_prevTotal';
 
   function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -630,6 +631,7 @@
   function savePrices() { save(PRICES_KEY, prices); }
   function saveUsdIls() { save(USDILS_KEY, usdIlsRate); }
   function savePrevPrices() { save(PREV_PRICES_KEY, prevPrices); }
+  function savePrevTotal() { save(PREV_TOTAL_KEY, prevTotalValue); }
 
   function isCash(symbol) { return symbol === 'CASH'; }
 
@@ -720,6 +722,7 @@
   // =========================================================
   // Stores the value snapshot from before the last refresh
   let prevPrices = load(PREV_PRICES_KEY, {});
+  let prevTotalValue = load(PREV_TOTAL_KEY, null);
   let showPct = load('portfolio_showPct', false); // toggle: show values as % of portfolio
 
   function computeTotalValue() {
@@ -738,6 +741,12 @@
       if (p != null) total += it.shares * p;
     });
     return total;
+  }
+
+  // Migrate: if prevPrices exists from old code but prevTotalValue was never set
+  if (prevTotalValue == null && Object.keys(prevPrices).length > 0) {
+    prevTotalValue = computeTotalWithPrices(prevPrices);
+    savePrevTotal();
   }
 
   function fmtDelta(delta) {
@@ -876,13 +885,11 @@
     const total1dPrevVal = total1d != null ? total - total1d : null;
     const total1dPct = total1dPrevVal ? ((total1d / total1dPrevVal) * 100) : null;
 
-    // Compute reset delta
-    const hasPrev = Object.keys(prevPrices).length > 0;
+    // Compute reset delta (stored total value — resilient to position changes / trades)
     let resetDelta = null, resetPct = null;
-    if (hasPrev && items.length > 0) {
-      const prevTotal = computeTotalWithPrices(prevPrices);
-      resetDelta = total - prevTotal;
-      resetPct = prevTotal ? ((resetDelta / prevTotal) * 100) : 0;
+    if (prevTotalValue != null && items.length > 0) {
+      resetDelta = total - prevTotalValue;
+      resetPct = prevTotalValue ? ((resetDelta / prevTotalValue) * 100) : 0;
     }
 
     // Render both on the same row
@@ -1356,12 +1363,14 @@
     accounts = [];
     prices = {};
     prevPrices = {};
+    prevTotalValue = null;
     usdIlsRate = null;
     saveItems();
     saveAccounts();
     savePrices();
     saveUsdIls();
     savePrevPrices();
+    savePrevTotal();
     render();
     showToast('All data cleared');
   });
@@ -1380,7 +1389,9 @@
       const p = getPrice(sym);
       if (p != null) prevPrices[sym] = p;
     });
+    prevTotalValue = computeTotalValue();
     savePrevPrices();
+    savePrevTotal();
     render();
     showToast('Delta baseline reset');
   }
@@ -1696,13 +1707,9 @@
     items = payload.items || [];
     accounts = payload.accounts || [];
     prices = payload.prices || {};
-    prevPrices = {};
-    usdIlsRate = null;
     saveItems();
     saveAccounts();
     savePrices();
-    saveUsdIls();
-    savePrevPrices();
 
     // Clear URL
     history.replaceState(null, '', location.pathname);
