@@ -761,6 +761,13 @@
     return curr - prev;
   }
 
+  function getSymbolDeltaPct(symbol) {
+    const curr = getPrice(symbol);
+    const prev = prevPrices[symbol];
+    if (curr == null || prev == null || prev === 0) return null;
+    return ((curr - prev) / prev) * 100;
+  }
+
   function fmtPct(n) {
     if (n == null || isNaN(n)) return null;
     const sign = n >= 0 ? '+' : '';
@@ -799,6 +806,7 @@
       { label: '1M', val: pd.change30d },
       { label: '1Q', val: pd.change1q },
       { label: '1Y', val: pd.change1y },
+      { label: 'Δ', val: getSymbolDeltaPct(symbol) },
     ];
     return parts
       .filter(p => p.val != null)
@@ -1788,7 +1796,7 @@
 
     // Confirm import
     const symbolCount = new Set(rows.map(r => r.symbol)).size;
-    const msg = `Import ${rows.length} item(s) (${symbolCount} symbols) from CSV?\n\nThis will ADD to your existing portfolio.`;
+    const msg = `Import ${rows.length} item(s) (${symbolCount} symbols) from CSV?\n\nExisting positions (same ticker + account) will be updated.`;
     if (!confirm(msg)) return;
 
     // Auto-create accounts from desc column
@@ -1800,18 +1808,29 @@
     });
     saveAccounts();
 
-    // Add items
-    let added = 0;
+    let added = 0, updated = 0;
     rows.forEach(row => {
       const accountId = row.desc
         ? (accounts.find(a => a.name.toLowerCase() === row.desc.toLowerCase()) || {}).id || null
         : null;
-      items.push({ id: uid(), symbol: row.symbol, shares: row.shares, accountId });
-      added++;
+      const existing = items.find(it =>
+        it.symbol === row.symbol &&
+        String(it.accountId || '') === String(accountId || '')
+      );
+      if (existing) {
+        existing.shares = row.shares;
+        updated++;
+      } else {
+        items.push({ id: uid(), symbol: row.symbol, shares: row.shares, accountId });
+        added++;
+      }
     });
     saveItems();
     render();
-    showToast(`Imported ${added} items`);
+    const parts = [];
+    if (added) parts.push(`${added} added`);
+    if (updated) parts.push(`${updated} updated`);
+    showToast(`Imported: ${parts.join(', ')}`);
 
     // Auto-refresh prices for new symbols
     refreshPrices();
