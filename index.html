@@ -1706,10 +1706,12 @@
 
     items = payload.items || [];
     accounts = payload.accounts || [];
-    prices = payload.prices || {};
     saveItems();
     saveAccounts();
-    savePrices();
+    if (payload.prices && Object.keys(payload.prices).length > 0) {
+      prices = payload.prices;
+      savePrices();
+    }
 
     // Clear URL
     history.replaceState(null, '', location.pathname);
