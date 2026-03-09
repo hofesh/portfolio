@@ -631,7 +631,10 @@
   function saveUsdIls() { save(USDILS_KEY, usdIlsRate); }
   function savePrevPrices() { save(PREV_PRICES_KEY, prevPrices); }
 
+  function isCash(symbol) { return symbol === 'CASH'; }
+
   function getPrice(symbol) {
+    if (isCash(symbol)) return 1;
     const p = prices[symbol];
     return p ? p.price : null;
   }
@@ -640,6 +643,7 @@
     return p ? p.lastUpdated : null;
   }
   function getPriceData(symbol) {
+    if (isCash(symbol)) return { price: 1 };
     return prices[symbol] || {};
   }
   function getAccountName(accountId) {
@@ -830,7 +834,8 @@
   ['IBIT'].forEach(s => SYMBOL_TYPES[s] = 'Other');
   ['SGOV','GLDM','TLT','BTAL','DBMF','TAIL','SJB'].forEach(s => SYMBOL_TYPES[s] = 'Hedge');
   ['JETD','PXE','XLE','FRO','INSW','STNG'].forEach(s => SYMBOL_TYPES[s] = 'Hedge Equities');
-  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Hedge', 'Hedge Equities', 'Other', 'Unknown'];
+  ['CASH'].forEach(s => SYMBOL_TYPES[s] = 'Cash');
+  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Hedge', 'Hedge Equities', 'Other', 'Cash', 'Unknown'];
   function getHoldingType(syms) {
     for (const s of syms) { if (SYMBOL_TYPES[s]) return SYMBOL_TYPES[s]; }
     return 'Unknown';
@@ -991,21 +996,25 @@
         const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
 
         const primarySym = syms[0];
-        const changes = renderChanges(primarySym);
+        const isCashHolding = isCash(primarySym);
+        const changes = isCashHolding ? '' : renderChanges(primarySym);
         const day1dHtml = h.dayDollarChange != null ? `<span class="delta-sm delta-under-left ${deltaClass(h.dayDollarChange)}">${fmtDelta(h.dayDollarChange)}</span>` : '';
 
-        // Price / shares display (omit for unified holdings)
         let priceSharesHtml = '';
-        if (!isUnified) {
+        if (!isUnified && !isCashHolding) {
           const p = getPrice(primarySym);
           const totalShares = h.symbols[primarySym];
           priceSharesHtml = `<span class="card-price">${p != null ? fmtMoney(p) : '—'}</span> <span class="card-shares">${totalShares}</span>`;
         }
 
+        const holdingSymHtml = isCashHolding
+          ? `<span class="card-symbol">${esc(h.group)}</span>`
+          : `<a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(primarySym)}" target="_blank">${esc(h.group)}</a>`;
+
         return `
           <div class="card">
             <div class="card-row1-left">
-              <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(primarySym)}" target="_blank">${esc(h.group)}</a>
+              ${holdingSymHtml}
               ${priceSharesHtml}
             </div>
             <div class="card-row1-right">${accText}</div>
@@ -1039,17 +1048,22 @@
       const p = getPrice(it.symbol);
       const mktVal = p != null ? it.shares * p : null;
       const accName = getAccountName(it.accountId);
+      const isCashItem = isCash(it.symbol);
       const priceDelta = getSymbolPriceDelta(it.symbol);
       const valDelta = priceDelta != null ? priceDelta * it.shares : null;
       const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
       const day1dDollar = compute1dDollarChange({ [it.symbol]: it.shares });
       const day1dHtml = day1dDollar != null ? `<span class="delta-sm delta-under-left ${deltaClass(day1dDollar)}">${fmtDelta(day1dDollar)}</span>` : '';
-      const changes = renderChanges(it.symbol);
+      const changes = isCashItem ? '' : renderChanges(it.symbol);
+      const itemSymHtml = isCashItem
+        ? `<span class="card-symbol">${esc(it.symbol)}</span>`
+        : `<a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(it.symbol)}" target="_blank">${esc(it.symbol)}</a>`;
+      const itemPriceHtml = isCashItem ? '' : `<span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>`;
       return `
         <div class="card">
           <div class="card-row1-left">
-            <a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(it.symbol)}" target="_blank">${esc(it.symbol)}</a>
-            <span class="card-price">${p != null ? fmtMoney(p) : '—'}</span>
+            ${itemSymHtml}
+            ${itemPriceHtml}
             <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares}</span></span>
           </div>
           <div class="card-row1-right">${accName ? '<span class="badge">' + esc(accName) + '</span>' : ''}</div>
@@ -1218,7 +1232,7 @@
     $itemAccountSelect.value = '';
 
     // Auto-refresh prices when a new symbol is added
-    if (isNewSymbol || !getPrice(symbol)) {
+    if ((isNewSymbol || !getPrice(symbol)) && !isCash(symbol)) {
       refreshPrices();
     }
   }
@@ -1240,14 +1254,15 @@
   function editItemShares(id) {
     const item = items.find(it => String(it.id) === String(id));
     if (!item) return;
-    const newShares = prompt(`Shares of ${item.symbol}:`, item.shares);
+    const label = isCash(item.symbol) ? 'Amount' : 'Shares';
+    const newShares = prompt(`${label} of ${item.symbol}:`, item.shares);
     if (newShares === null) return;
     const parsed = parseFloat(newShares);
     if (isNaN(parsed) || parsed <= 0) { showToast('Invalid number'); return; }
     item.shares = parsed;
     saveItems();
     render();
-    showToast(`Updated ${item.symbol} to ${parsed} shares`);
+    showToast(`Updated ${item.symbol} to ${parsed} ${isCash(item.symbol) ? 'USD' : 'shares'}`);
   }
 
   function deleteItem(id) {
@@ -1371,7 +1386,7 @@
     $refreshBtn.disabled = true;
     $refreshBtn.innerHTML = '<span class="spinner"></span>';
 
-    const symbols = [...new Set(items.map(it => it.symbol))];
+    const symbols = [...new Set(items.map(it => it.symbol))].filter(s => !isCash(s));
 
     try {
       // Fetch stock prices and USD/ILS rate in parallel
@@ -1405,7 +1420,7 @@
       });
       savePrices();
       render();
-      showToast(`Updated ${updated}/${symbols.length} prices`);
+      showToast(symbols.length ? `Updated ${updated}/${symbols.length} prices` : 'Portfolio up to date');
     } catch (err) {
       console.error('Price fetch failed:', err);
       showToast('Failed to fetch prices');
