@@ -276,14 +276,7 @@
     gap: 3px;
     position: relative;
   }
-  .delta-under-left.delta-sm {
-    position: absolute;
-    top: calc(100% + 1px);
-    left: 0;
-    white-space: nowrap;
-    line-height: 1;
-    font-size: 9px;
-  }
+  
   .card-row2-right {
     display: flex;
     align-items: center;
@@ -291,13 +284,7 @@
     justify-content: flex-end;
     position: relative;
   }
-  .delta-under {
-    position: absolute;
-    top: calc(100% - 4px);
-    right: 0;
-    white-space: nowrap;
-    line-height: 1;
-  }
+  
   .card-value {
     font-size: 15px;
     font-weight: 600;
@@ -358,6 +345,16 @@
     border-radius: 3px;
     white-space: nowrap;
     display: inline-block;
+    position: relative;
+  }
+  .chg-dollar {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1;
   }
   .chg-label {
     font-weight: 500;
@@ -807,19 +804,24 @@
     return hasAny ? total : null;
   }
 
-  function renderChanges(symbol) {
+  function renderChanges(symbol, day1dDollar, deltaDollar) {
     const pd = getPriceData(symbol);
     const parts = [
-      { label: '1D', val: pd.changeDay },
+      { label: '1D', val: pd.changeDay, dollar: day1dDollar },
       { label: '1W', val: pd.change1w },
       { label: '1M', val: pd.change30d },
       { label: '1Q', val: pd.change1q },
       { label: '1Y', val: pd.change1y },
-      { label: 'Δ', val: getSymbolDeltaPct(symbol) },
+      { label: 'Δ', val: getSymbolDeltaPct(symbol), dollar: deltaDollar },
     ];
     return parts
       .filter(p => p.val != null)
-      .map(p => `<span class="chg ${chgClass(p.val)}"><span class="chg-label">${p.label}</span> ${fmtPct(p.val)}</span>`)
+      .map(p => {
+        const dollarHtml = p.dollar != null
+          ? `<span class="chg-dollar ${deltaClass(p.dollar)}">${fmtDelta(p.dollar)}</span>`
+          : '';
+        return `<span class="chg ${chgClass(p.val)}"><span class="chg-label">${p.label}</span> ${fmtPct(p.val)}${dollarHtml}</span>`;
+      })
       .join(' ');
   }
 
@@ -1007,13 +1009,11 @@
         });
         if (!hasAnyDelta) valDelta = null;
 
-        const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
         const accText = h.accounts.length ? h.accounts.map(a => `<span class="badge">${esc(a)}</span>`).join(' ') : '';
 
         const primarySym = syms[0];
         const isCashHolding = isCash(primarySym);
-        const changes = isCashHolding ? '' : renderChanges(primarySym);
-        const day1dHtml = h.dayDollarChange != null ? `<span class="delta-sm delta-under-left ${deltaClass(h.dayDollarChange)}">${fmtDelta(h.dayDollarChange)}</span>` : '';
+        const changes = isCashHolding ? '' : renderChanges(primarySym, h.dayDollarChange, valDelta);
 
         let priceSharesHtml = '';
         if (!isUnified && !isCashHolding) {
@@ -1033,10 +1033,9 @@
               ${priceSharesHtml}
             </div>
             <div class="card-row1-right">${accText}</div>
-            <div class="card-row2-left">${changes}${day1dHtml}</div>
+            <div class="card-row2-left">${changes}</div>
             <div class="card-row2-right">
               <span class="card-value val-toggle">${h.mktVal != null ? (showPct ? fmtPctOf(h.mktVal, portfolioTotal) : fmtMoney(h.mktVal)) : '—'}</span>
-              ${deltaHtml}
             </div>
           </div>`;
       }).join('');
@@ -1066,10 +1065,8 @@
       const isCashItem = isCash(it.symbol);
       const priceDelta = getSymbolPriceDelta(it.symbol);
       const valDelta = priceDelta != null ? priceDelta * it.shares : null;
-      const deltaHtml = valDelta != null ? `<span class="delta-sm delta-under ${deltaClass(valDelta)}">${fmtDelta(valDelta)}</span>` : '';
       const day1dDollar = compute1dDollarChange({ [it.symbol]: it.shares });
-      const day1dHtml = day1dDollar != null ? `<span class="delta-sm delta-under-left ${deltaClass(day1dDollar)}">${fmtDelta(day1dDollar)}</span>` : '';
-      const changes = isCashItem ? '' : renderChanges(it.symbol);
+      const changes = isCashItem ? '' : renderChanges(it.symbol, day1dDollar, valDelta);
       const itemSymHtml = isCashItem
         ? `<span class="card-symbol">${esc(it.symbol)}</span>`
         : `<a class="card-symbol" href="https://finance.yahoo.com/quote/${encodeURIComponent(it.symbol)}" target="_blank">${esc(it.symbol)}</a>`;
@@ -1086,10 +1083,9 @@
             <button class="icon-btn" data-action="edit-item" data-id="${it.id}" title="Edit">✎</button>
             <button class="icon-btn danger" data-action="delete-item" data-id="${it.id}" title="Remove">×</button>
           </div>
-          <div class="card-row2-left">${changes}${day1dHtml}</div>
+          <div class="card-row2-left">${changes}</div>
           <div class="card-row2-right">
             <span class="card-value val-toggle">${mktVal != null ? (showPct ? fmtPctOf(mktVal, portfolioTotal) : fmtMoney(mktVal)) : '—'}</span>
-            ${deltaHtml}
           </div>
         </div>`;
     }).join('');
