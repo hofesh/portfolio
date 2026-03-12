@@ -437,6 +437,27 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Per-ticker refresh indicators */
+  .refresh-ind {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .refresh-ind .mini-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  .refresh-ind.pending .mini-spinner { opacity: 0.5; }
+  .refresh-ind.done { color: var(--green); }
+  .refresh-ind.error { color: var(--danger); }
+
   /* Toast */
   .toast {
     position: fixed;
@@ -499,6 +520,7 @@
       <button id="refreshBtn" title="Refresh Prices"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
       <button id="resetBaselineBtn" title="Reset Delta Baseline"><svg viewBox="0 0 24 24" style="pointer-events:none"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/></svg></button>
       <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+      <button id="apiKeyBtn" title="Set API Key"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></button>
       <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>
     <div class="value val-toggle" id="totalValue">—</div>
@@ -582,6 +604,7 @@
   const PRICES_KEY = 'portfolio_prices';
   const PREV_PRICES_KEY = 'portfolio_prevPrices';
   const PREV_TOTAL_KEY = 'portfolio_prevTotal';
+  const TWELVE_DATA_KEY = 'portfolio_twelveDataKey';
 
   function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -622,6 +645,8 @@
   // USD/ILS exchange rate
   const USDILS_KEY = 'portfolio_usdils';
   let usdIlsRate = load(USDILS_KEY, null);
+  // Twelve Data API key (free: https://twelvedata.com/pricing)
+  let twelveDataApiKey = load(TWELVE_DATA_KEY, '15d4878506624cdfb6a95817f5653318');
 
   function saveItems() { save(ITEMS_KEY, items); }
   function saveAccounts() { save(ACCOUNTS_KEY, accounts); }
@@ -919,7 +944,13 @@
     const nItems = items.length;
     const nAccounts = accounts.length;
     const parts = [];
-    parts.push(nSymbols + ' symbol' + (nSymbols !== 1 ? 's' : ''));
+    if (isRefreshing) {
+      const done = Object.values(refreshStatus).filter(s => s === 'done' || s === 'error').length;
+      const total = Object.keys(refreshStatus).length;
+      parts.push(`${done}/${total} symbols`);
+    } else {
+      parts.push(nSymbols + ' symbol' + (nSymbols !== 1 ? 's' : ''));
+    }
     parts.push(nItems + ' item' + (nItems !== 1 ? 's' : ''));
     if (nAccounts) parts.push(nAccounts + ' account' + (nAccounts !== 1 ? 's' : ''));
     $summarySubtext.textContent = parts.join(' · ');
@@ -1029,7 +1060,7 @@
         return `
           <div class="card">
             <div class="card-row1-left">
-              ${holdingSymHtml}
+              ${holdingSymHtml}${refreshIndicator(primarySym)}
               ${priceSharesHtml}
             </div>
             <div class="card-row1-right">${accText}</div>
@@ -1074,7 +1105,7 @@
       return `
         <div class="card">
           <div class="card-row1-left">
-            ${itemSymHtml}
+            ${itemSymHtml}${refreshIndicator(it.symbol)}
             ${itemPriceHtml}
             <span class="card-shares"><span class="editable" data-action="edit-shares" data-id="${it.id}">${it.shares}</span></span>
           </div>
@@ -1372,6 +1403,19 @@
   });
 
   // =========================================================
+  // API KEY
+  // =========================================================
+  const $apiKeyBtn = $('apiKeyBtn');
+  $apiKeyBtn.addEventListener('click', () => {
+    const current = twelveDataApiKey ? `Current: ${twelveDataApiKey.slice(0, 6)}…` : 'None set';
+    const key = prompt(`Twelve Data API Key (${current})\n\nGet a free key at https://twelvedata.com/pricing`, twelveDataApiKey);
+    if (key === null) return;
+    twelveDataApiKey = key.trim();
+    save(TWELVE_DATA_KEY, twelveDataApiKey);
+    showToast(twelveDataApiKey ? 'API key saved' : 'API key cleared');
+  });
+
+  // =========================================================
   // REFRESH PRICES
   // =========================================================
   $refreshBtn.addEventListener('click', refreshPrices);
@@ -1393,187 +1437,191 @@
   }
 
   async function refreshPrices() {
-    if (items.length === 0) {
-      showToast('Add some items first');
-      return;
-    }
+    if (isRefreshing) return;
+    if (items.length === 0) { showToast('Add some items first'); return; }
+    if (!twelveDataApiKey) { showToast('Set your Twelve Data API key first (key icon)'); return; }
 
+    isRefreshing = true;
     $refreshBtn.disabled = true;
     $refreshBtn.innerHTML = '<span class="spinner"></span>';
 
-    const symbols = [...new Set(items.map(it => it.symbol))].filter(s => !isCash(s));
+    const symbols = [...new Set(items.map(it => it.symbol))].filter(s => !isCash(s))
+      .sort((a, b) => {
+        const valOf = sym => items.reduce((sum, it) => it.symbol === sym ? sum + (getPrice(sym) || 0) * it.shares : sum, 0);
+        return valOf(b) - valOf(a);
+      });
+    refreshStatus = {};
+    symbols.forEach(sym => { refreshStatus[sym] = 'pending'; });
+    render();
 
+    // FX call (queued, counts as 1 credit)
     try {
-      // Fetch stock prices and USD/ILS rate in parallel
-      const fxPromise = (async () => {
-        try {
-          const fxUrl = `https://query1.finance.yahoo.com/v8/finance/chart/USDILS%3DX?interval=1d&range=1d&_t=${Date.now()}`;
-          const fxData = await fetchViaProxy(fxUrl);
-          const fxMeta = fxData.chart.result[0].meta;
-          usdIlsRate = fxMeta.regularMarketPrice;
-          saveUsdIls();
-        } catch (e) {
-          console.warn('Failed to fetch USD/ILS rate:', e);
-        }
-      })();
+      const fxData = await fetchTwelveDataQueued('/exchange_rate', { symbol: 'USD/ILS' });
+      usdIlsRate = parseFloat(fxData.rate);
+      saveUsdIls();
+    } catch (e) {
+      console.warn('Failed to fetch USD/ILS rate:', e);
+    }
 
-      const [fetched] = await Promise.all([fetchPrices(symbols), fxPromise]);
-      let updated = 0;
-      symbols.forEach(sym => {
-        if (fetched[sym] != null) {
+    // Split: international symbols (contain ".") go via yf-import, US via Twelve Data queue
+    const intlSymbols = symbols.filter(isInternationalSymbol);
+    const usSymbols = symbols.filter(s => !isInternationalSymbol(s));
+
+    let updated = 0;
+
+    // International symbols: fetch in parallel via yf-import (no rate limit, price only)
+    if (intlSymbols.length) {
+      intlSymbols.forEach(sym => { refreshStatus[sym] = 'loading'; });
+      render();
+      await Promise.all(intlSymbols.map(async (sym) => {
+        try {
+          const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const text = await resp.text();
+          const price = parseFloat(text.trim());
+          if (isNaN(price)) throw new Error('Invalid price');
+          const old = prices[sym] || {};
+          prices[sym] = { ...old, price, lastUpdated: Date.now() };
+          refreshStatus[sym] = 'done';
+          updated++;
+        } catch (e) {
+          console.warn(`Failed to fetch ${sym} via yf-import:`, e);
+          refreshStatus[sym] = 'error';
+        }
+      }));
+      savePrices();
+      render();
+    }
+
+    // US symbols: fetch sequentially through rate-limited Twelve Data queue
+    for (const sym of usSymbols) {
+      refreshStatus[sym] = 'loading';
+      render();
+      try {
+        const data = await fetchTwelveDataQueued('/time_series', {
+          symbol: sym, interval: '1day', outputsize: '265'
+        });
+        const values = data.values;
+        if (values && values.length >= 2) {
+          const currentPrice = parseFloat(values[0].close);
+          const prevClose = parseFloat(values[1].close);
+          function pctChange(oldPrice) {
+            if (!oldPrice) return null;
+            return ((currentPrice - oldPrice) / oldPrice) * 100;
+          }
+          function closeDaysAgo(calendarDays) {
+            const target = new Date();
+            target.setDate(target.getDate() - calendarDays);
+            const targetStr = target.toISOString().slice(0, 10);
+            for (const v of values) {
+              if (v.datetime <= targetStr) return parseFloat(v.close);
+            }
+            return null;
+          }
+          const close1y = values.length > 0 ? parseFloat(values[values.length - 1].close) : null;
           prices[sym] = {
-            price: fetched[sym].price,
+            price: currentPrice,
             lastUpdated: Date.now(),
-            changeDay: fetched[sym].changeDay,
-            change1w: fetched[sym].change1w,
-            change30d: fetched[sym].change30d,
-            change1q: fetched[sym].change1q,
-            change1y: fetched[sym].change1y,
+            changeDay: pctChange(prevClose),
+            change1w: pctChange(closeDaysAgo(7)),
+            change30d: pctChange(closeDaysAgo(30)),
+            change1q: pctChange(closeDaysAgo(90)),
+            change1y: pctChange(close1y),
           };
           updated++;
         }
-      });
+        refreshStatus[sym] = 'done';
+      } catch (e) {
+        // If Twelve Data says symbol not on plan, fall back to yf-import
+        if (e.message && (e.message.includes('starting with') || e.message.includes('missing or invalid'))) {
+          try {
+            const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const price = parseFloat((await resp.text()).trim());
+            if (isNaN(price)) throw new Error('Invalid price');
+            const old = prices[sym] || {};
+            prices[sym] = { ...old, price, lastUpdated: Date.now() };
+            refreshStatus[sym] = 'done';
+            updated++;
+          } catch (e2) {
+            console.warn(`Fallback also failed for ${sym}:`, e2);
+            refreshStatus[sym] = 'error';
+          }
+        } else {
+          console.warn(`Failed to fetch ${sym}:`, e);
+          refreshStatus[sym] = 'error';
+        }
+      }
       savePrices();
       render();
-      showToast(symbols.length ? `Updated ${updated}/${symbols.length} prices` : 'Portfolio up to date');
-    } catch (err) {
-      console.error('Price fetch failed:', err);
-      showToast('Failed to fetch prices');
     }
+
+    showToast(symbols.length ? `Updated ${updated}/${symbols.length} prices` : 'Portfolio up to date');
+
+    setTimeout(() => {
+      refreshStatus = {};
+      isRefreshing = false;
+      render();
+    }, 2000);
 
     $refreshBtn.disabled = false;
     $refreshBtn.innerHTML = '<svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>';
   }
 
-  // CORS proxies
-  const CORS_PROXIES = [
-    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  ];
+  // Twelve Data API — rate-limited queue (8 credits/min on free tier)
+  const TWELVE_DATA_BASE = 'https://api.twelvedata.com';
+  const YF_IMPORT_URL = (sym) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent('https://yf-import.gionn.net/api/quotes/' + sym)}`;
+  const CREDITS_PER_MIN = 8;
+  const apiCallTimes = [];
+  let refreshStatus = {};
+  let isRefreshing = false;
 
-  async function fetchViaProxy(targetUrl) {
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
-      const proxyUrl = CORS_PROXIES[i](targetUrl);
-      try {
-        const resp = await fetch(proxyUrl, { cache: 'no-store' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (json.contents && typeof json.contents === 'string') {
-          return JSON.parse(json.contents);
-        }
-        return json;
-      } catch (e) {
-        console.warn(`Proxy ${i + 1} failed for ${targetUrl}:`, e);
-        if (i === CORS_PROXIES.length - 1) throw e;
+  function isInternationalSymbol(sym) { return sym.includes('.'); }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function waitForCredit() {
+    while (true) {
+      const now = Date.now();
+      while (apiCallTimes.length && apiCallTimes[0] <= now - 60000) {
+        apiCallTimes.shift();
       }
+      if (apiCallTimes.length < CREDITS_PER_MIN) {
+        apiCallTimes.push(Date.now());
+        return;
+      }
+      const waitMs = apiCallTimes[0] + 60000 - now + 200;
+      await sleep(waitMs);
     }
   }
 
-  async function fetchPrices(symbols) {
-    const result = {};
-    const fetches = symbols.map(async (sym) => {
-      // Fetch 1 year of daily data — gives us current price and dividend-adjusted historical prices
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y&_t=${Date.now()}`;
-      try {
-        const data = await fetchViaProxy(yahooUrl);
-        const chart = data.chart.result[0];
-        const meta = chart.meta;
-
-        // Raw close prices for current price / 1D change
-        const timestamps = chart.timestamp || [];
-        const closes = (chart.indicators.quote[0].close) || [];
-
-        // Dividend-adjusted close prices for total-return % changes
-        // Falls back to raw closes if adjclose not available
-        const adjCloses = (chart.indicators.adjclose && chart.indicators.adjclose[0] && chart.indicators.adjclose[0].adjclose)
-          ? chart.indicators.adjclose[0].adjclose
-          : closes;
-
-        // Determine if market is currently in regular trading hours
-        const nowSec = Date.now() / 1000;
-        const tradingPeriod = meta.currentTradingPeriod;
-        const regStart = tradingPeriod && tradingPeriod.regular ? tradingPeriod.regular.start : 0;
-        const regEnd = tradingPeriod && tradingPeriod.regular ? tradingPeriod.regular.end : 0;
-        const isRegularHours = nowSec >= regStart && nowSec <= regEnd;
-
-        // Find the last non-null close in the chart data (most recent regular-session close)
-        function lastClose(arr) {
-          for (let i = arr.length - 1; i >= 0; i--) {
-            if (arr[i] != null) return arr[i];
-          }
-          return null;
-        }
-
-        // During regular hours: use live regularMarketPrice
-        // Outside regular hours: use last chart close (regular-session close)
-        const currentPrice = isRegularHours ? meta.regularMarketPrice : (lastClose(closes) || meta.regularMarketPrice);
-
-        // Helper: find the last non-null value at or before a timestamp (in a given array)
-        function valueAt(arr, targetTs) {
-          for (let i = timestamps.length - 1; i >= 0; i--) {
-            if (timestamps[i] <= targetTs && arr[i] != null) {
-              return arr[i];
-            }
-          }
-          return null;
-        }
-
-        // 1D change uses raw closes (no dividend adjustment needed for a single day)
-        function pctChangeRaw(oldPrice) {
-          if (!oldPrice) return null;
-          return ((currentPrice - oldPrice) / oldPrice) * 100;
-        }
-
-        // Longer-term changes use adjclose for total return (price + dividends)
-        // We compare: currentPrice / (adjClose_then / adjClose_latest) - 1
-        // This correctly accounts for dividends paid between then and now
-        const adjLatest = lastClose(adjCloses);
-        function pctChangeTotalReturn(adjOld) {
-          if (!adjOld || !adjLatest) return null;
-          // adjOld/adjLatest gives the ratio that accounts for dividends
-          // Equivalent historical price adjusted to today's basis
-          const adjustedOld = currentPrice * (adjOld / adjLatest);
-          return ((currentPrice - adjustedOld) / adjustedOld) * 100;
-        }
-
-        // 1D: previous trading day's close (raw, no dividend adjustment)
-        let closeYesterday = null;
-        if (closes.length >= 2) {
-          let lastIdx = -1;
-          for (let i = closes.length - 1; i >= 0; i--) {
-            if (closes[i] != null) { lastIdx = i; break; }
-          }
-          if (lastIdx > 0) {
-            for (let i = lastIdx - 1; i >= 0; i--) {
-              if (closes[i] != null) { closeYesterday = closes[i]; break; }
-            }
-          }
-        }
-
-        // Longer periods: use dividend-adjusted closes for total return
-        const adj1w = valueAt(adjCloses, nowSec - 7 * 86400);
-        const adj30d = valueAt(adjCloses, nowSec - 30 * 86400);
-        const adj1q = valueAt(adjCloses, nowSec - 90 * 86400);
-        // 1Y: first available adjusted close in the dataset
-        let adj1y = null;
-        for (let i = 0; i < timestamps.length; i++) {
-          if (adjCloses[i] != null) { adj1y = adjCloses[i]; break; }
-        }
-
-        result[sym] = {
-          price: currentPrice,
-          changeDay: pctChangeRaw(closeYesterday),
-          change1w: pctChangeTotalReturn(adj1w),
-          change30d: pctChangeTotalReturn(adj30d),
-          change1q: pctChangeTotalReturn(adj1q),
-          change1y: pctChangeTotalReturn(adj1y),
-        };
-      } catch (e) {
-        console.warn(`All proxies failed for ${sym}:`, e);
+  async function fetchTwelveDataQueued(endpoint, params) {
+    await waitForCredit();
+    if (!twelveDataApiKey) throw new Error('API key not set');
+    const qs = new URLSearchParams({ ...params, apikey: twelveDataApiKey });
+    const resp = await fetch(`${TWELVE_DATA_BASE}${endpoint}?${qs}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    if (json.status === 'error') {
+      if (json.code === 429 || (json.message && json.message.includes('API credits'))) {
+        console.warn('Rate limit hit, waiting 60s…');
+        apiCallTimes.length = 0;
+        await sleep(60000);
+        return fetchTwelveDataQueued(endpoint, params);
       }
-    });
-    await Promise.all(fetches);
-    return result;
+      throw new Error(json.message || 'API error');
+    }
+    return json;
+  }
+
+  function refreshIndicator(symbol) {
+    const st = refreshStatus[symbol];
+    if (!st) return '';
+    if (st === 'pending') return '<span class="refresh-ind pending"><span class="mini-spinner"></span></span>';
+    if (st === 'loading') return '<span class="refresh-ind loading"><span class="mini-spinner"></span></span>';
+    if (st === 'done') return '<span class="refresh-ind done">✓</span>';
+    if (st === 'error') return '<span class="refresh-ind error">✗</span>';
+    return '';
   }
 
   // =========================================================
