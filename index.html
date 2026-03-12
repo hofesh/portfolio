@@ -645,8 +645,15 @@
   // USD/ILS exchange rate
   const USDILS_KEY = 'portfolio_usdils';
   let usdIlsRate = load(USDILS_KEY, null);
-  // Twelve Data API key (free: https://twelvedata.com/pricing)
-  let twelveDataApiKey = load(TWELVE_DATA_KEY, '15d4878506624cdfb6a95817f5653318');
+  // Twelve Data API keys (free: https://twelvedata.com/pricing)
+  const TWELVE_DATA_DEFAULT_KEYS = [
+    '15d4878506624cdfb6a95817f5653318',
+    'a55055e245fa43a6822ee7dd27aaac24',
+    '1573ae70832f4aa183f2e317d068e9f8',
+    '60000d5aadd04557bc7599c6b95036e6',
+  ];
+  let twelveDataApiKeys = load(TWELVE_DATA_KEY, TWELVE_DATA_DEFAULT_KEYS);
+  if (typeof twelveDataApiKeys === 'string') twelveDataApiKeys = twelveDataApiKeys ? [twelveDataApiKeys] : TWELVE_DATA_DEFAULT_KEYS;
 
   function saveItems() { save(ITEMS_KEY, items); }
   function saveAccounts() { save(ACCOUNTS_KEY, accounts); }
@@ -1407,12 +1414,12 @@
   // =========================================================
   const $apiKeyBtn = $('apiKeyBtn');
   $apiKeyBtn.addEventListener('click', () => {
-    const current = twelveDataApiKey ? `Current: ${twelveDataApiKey.slice(0, 6)}…` : 'None set';
-    const key = prompt(`Twelve Data API Key (${current})\n\nGet a free key at https://twelvedata.com/pricing`, twelveDataApiKey);
-    if (key === null) return;
-    twelveDataApiKey = key.trim();
-    save(TWELVE_DATA_KEY, twelveDataApiKey);
-    showToast(twelveDataApiKey ? 'API key saved' : 'API key cleared');
+    const current = twelveDataApiKeys.length ? `${twelveDataApiKeys.length} key(s): ${twelveDataApiKeys.map(k => k.slice(0,6)+'…').join(', ')}` : 'None set';
+    const input = prompt(`Twelve Data API Keys (${current})\n\nPaste one or more keys, comma-separated.\nGet free keys at https://twelvedata.com/pricing`, twelveDataApiKeys.join(', '));
+    if (input === null) return;
+    twelveDataApiKeys = input.split(',').map(k => k.trim()).filter(Boolean);
+    save(TWELVE_DATA_KEY, twelveDataApiKeys);
+    showToast(twelveDataApiKeys.length ? `${twelveDataApiKeys.length} API key(s) saved` : 'API keys cleared');
   });
 
   // =========================================================
@@ -1439,7 +1446,7 @@
   async function refreshPrices() {
     if (isRefreshing) return;
     if (items.length === 0) { showToast('Add some items first'); return; }
-    if (!twelveDataApiKey) { showToast('Set your Twelve Data API key first (key icon)'); return; }
+    if (!twelveDataApiKeys.length) { showToast('Set your Twelve Data API key first (key icon)'); return; }
 
     isRefreshing = true;
     $refreshBtn.disabled = true;
@@ -1454,71 +1461,63 @@
     symbols.forEach(sym => { refreshStatus[sym] = 'pending'; });
     render();
 
-    // FX call (queued, counts as 1 credit)
-    try {
-      const fxData = await fetchTwelveDataQueued('/exchange_rate', { symbol: 'USD/ILS' });
-      usdIlsRate = parseFloat(fxData.rate);
-      saveUsdIls();
-    } catch (e) {
-      console.warn('Failed to fetch USD/ILS rate:', e);
-    }
-
-    // Split: international symbols (contain ".") go via yf-import, US via Twelve Data queue
     const intlSymbols = symbols.filter(isInternationalSymbol);
     const usSymbols = symbols.filter(s => !isInternationalSymbol(s));
-
     let updated = 0;
 
-    // International symbols: fetch in parallel via yf-import (no rate limit, price only)
-    if (intlSymbols.length) {
-      intlSymbols.forEach(sym => { refreshStatus[sym] = 'loading'; });
-      render();
-      await Promise.all(intlSymbols.map(async (sym) => {
-        try {
-          const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const text = await resp.text();
-          const price = parseFloat(text.trim());
-          if (isNaN(price)) throw new Error('Invalid price');
-          const old = prices[sym] || {};
-          prices[sym] = { ...old, price, lastUpdated: Date.now() };
-          refreshStatus[sym] = 'done';
-          updated++;
-        } catch (e) {
-          console.warn(`Failed to fetch ${sym} via yf-import:`, e);
-          refreshStatus[sym] = 'error';
-        }
-      }));
-      savePrices();
-      render();
-    }
+    // International symbols + FX: fetch in parallel via yf-import (no rate limit)
+    const intlPromise = (async () => {
+      if (intlSymbols.length) {
+        intlSymbols.forEach(sym => { refreshStatus[sym] = 'loading'; });
+        render();
+        await Promise.all(intlSymbols.map(async (sym) => {
+          try {
+            const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const price = parseFloat((await resp.text()).trim());
+            if (isNaN(price)) throw new Error('Invalid price');
+            const old = prices[sym] || {};
+            prices[sym] = { ...old, price, lastUpdated: Date.now() };
+            refreshStatus[sym] = 'done';
+            updated++;
+          } catch (e) {
+            console.warn(`Failed to fetch ${sym} via yf-import:`, e);
+            refreshStatus[sym] = 'error';
+          }
+          render();
+        }));
+        savePrices();
+      }
+    })();
 
-    // US symbols: fetch sequentially through rate-limited Twelve Data queue
-    for (const sym of usSymbols) {
+    // US symbols: spread across all API keys in parallel via the key pool
+    const fxDone = { value: false };
+    const usJobs = usSymbols.map(sym => async (apiKey) => {
+      // First worker to run also fetches the FX rate
+      if (!fxDone.value) {
+        fxDone.value = true;
+        try {
+          const fxData = await fetchTwelveDataWithKey(apiKey, '/exchange_rate', { symbol: 'USD/ILS' });
+          usdIlsRate = parseFloat(fxData.rate);
+          saveUsdIls();
+        } catch (e) { console.warn('Failed to fetch USD/ILS rate:', e); }
+      }
       refreshStatus[sym] = 'loading';
       render();
       try {
-        const data = await fetchTwelveDataQueued('/time_series', {
+        const data = await fetchTwelveDataWithKey(apiKey, '/time_series', {
           symbol: sym, interval: '1day', outputsize: '265'
         });
         const values = data.values;
         if (values && values.length >= 2) {
           const currentPrice = parseFloat(values[0].close);
           const prevClose = parseFloat(values[1].close);
-          function pctChange(oldPrice) {
-            if (!oldPrice) return null;
-            return ((currentPrice - oldPrice) / oldPrice) * 100;
-          }
-          function closeDaysAgo(calendarDays) {
-            const target = new Date();
-            target.setDate(target.getDate() - calendarDays);
-            const targetStr = target.toISOString().slice(0, 10);
-            for (const v of values) {
-              if (v.datetime <= targetStr) return parseFloat(v.close);
-            }
+          const pctChange = (old) => old ? ((currentPrice - old) / old) * 100 : null;
+          const closeDaysAgo = (days) => {
+            const targetStr = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+            for (const v of values) { if (v.datetime <= targetStr) return parseFloat(v.close); }
             return null;
-          }
-          const close1y = values.length > 0 ? parseFloat(values[values.length - 1].close) : null;
+          };
           prices[sym] = {
             price: currentPrice,
             lastUpdated: Date.now(),
@@ -1526,13 +1525,12 @@
             change1w: pctChange(closeDaysAgo(7)),
             change30d: pctChange(closeDaysAgo(30)),
             change1q: pctChange(closeDaysAgo(90)),
-            change1y: pctChange(close1y),
+            change1y: pctChange(values.length > 0 ? parseFloat(values[values.length - 1].close) : null),
           };
           updated++;
         }
         refreshStatus[sym] = 'done';
       } catch (e) {
-        // If Twelve Data says symbol not on plan, fall back to yf-import
         if (e.message && (e.message.includes('starting with') || e.message.includes('missing or invalid'))) {
           try {
             const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
@@ -1554,7 +1552,9 @@
       }
       savePrices();
       render();
-    }
+    });
+
+    await Promise.all([intlPromise, runWithKeyPool(usJobs)]);
 
     showToast(symbols.length ? `Updated ${updated}/${symbols.length} prices` : 'Portfolio up to date');
 
@@ -1568,50 +1568,61 @@
     $refreshBtn.innerHTML = '<svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>';
   }
 
-  // Twelve Data API — rate-limited queue (8 credits/min on free tier)
+  // Twelve Data API — multi-key rate-limited queue (8 credits/min per key)
   const TWELVE_DATA_BASE = 'https://api.twelvedata.com';
   const YF_IMPORT_URL = (sym) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent('https://yf-import.gionn.net/api/quotes/' + sym)}`;
   const CREDITS_PER_MIN = 8;
-  const apiCallTimes = [];
   let refreshStatus = {};
   let isRefreshing = false;
 
   function isInternationalSymbol(sym) { return sym.includes('.'); }
-
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  async function waitForCredit() {
+  // Each key gets its own sliding-window credit tracker
+  const keyLanes = new Map();
+  function getLane(apiKey) {
+    if (!keyLanes.has(apiKey)) keyLanes.set(apiKey, []);
+    return keyLanes.get(apiKey);
+  }
+
+  async function waitForCreditOnKey(apiKey) {
+    const lane = getLane(apiKey);
     while (true) {
       const now = Date.now();
-      while (apiCallTimes.length && apiCallTimes[0] <= now - 60000) {
-        apiCallTimes.shift();
-      }
-      if (apiCallTimes.length < CREDITS_PER_MIN) {
-        apiCallTimes.push(Date.now());
-        return;
-      }
-      const waitMs = apiCallTimes[0] + 60000 - now + 200;
-      await sleep(waitMs);
+      while (lane.length && lane[0] <= now - 60000) lane.shift();
+      if (lane.length < CREDITS_PER_MIN) { lane.push(Date.now()); return; }
+      await sleep(lane[0] + 60000 - now + 200);
     }
   }
 
-  async function fetchTwelveDataQueued(endpoint, params) {
-    await waitForCredit();
-    if (!twelveDataApiKey) throw new Error('API key not set');
-    const qs = new URLSearchParams({ ...params, apikey: twelveDataApiKey });
+  async function fetchTwelveDataWithKey(apiKey, endpoint, params) {
+    await waitForCreditOnKey(apiKey);
+    const qs = new URLSearchParams({ ...params, apikey: apiKey });
     const resp = await fetch(`${TWELVE_DATA_BASE}${endpoint}?${qs}`, { cache: 'no-store' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
     if (json.status === 'error') {
       if (json.code === 429 || (json.message && json.message.includes('API credits'))) {
-        console.warn('Rate limit hit, waiting 60s…');
-        apiCallTimes.length = 0;
+        console.warn(`Rate limit hit on key ${apiKey.slice(0,6)}…, waiting 60s`);
+        getLane(apiKey).length = 0;
         await sleep(60000);
-        return fetchTwelveDataQueued(endpoint, params);
+        return fetchTwelveDataWithKey(apiKey, endpoint, params);
       }
       throw new Error(json.message || 'API error');
     }
     return json;
+  }
+
+  // Shared work queue: multiple key-lanes pull jobs concurrently
+  async function runWithKeyPool(jobs) {
+    const queue = [...jobs];
+    const workers = twelveDataApiKeys.map(async (apiKey) => {
+      while (queue.length) {
+        const job = queue.shift();
+        if (job) await job(apiKey);
+      }
+    });
+    await Promise.all(workers);
   }
 
   function refreshIndicator(symbol) {
