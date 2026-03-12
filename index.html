@@ -825,7 +825,7 @@
   function compute1dDollarChange(symbolSharesMap) {
     let total = 0, hasAny = false;
     for (const [sym, shares] of Object.entries(symbolSharesMap)) {
-      const pd = getPriceData(sym);
+      const pd = getPriceData(CHANGE_PROXY[sym] || sym);
       const price = getPrice(sym);
       if (pd.changeDay != null && price != null) {
         const prevClose = price / (1 + pd.changeDay / 100);
@@ -837,7 +837,8 @@
   }
 
   function renderChanges(symbol, day1dDollar, deltaDollar) {
-    const pd = getPriceData(symbol);
+    const changeSym = CHANGE_PROXY[symbol] || symbol;
+    const pd = getPriceData(changeSym);
     const parts = [
       { label: '1D', val: pd.changeDay, dollar: day1dDollar },
       { label: '1W', val: pd.change1w },
@@ -877,6 +878,9 @@
     'QQQ': 'QQQ/CNDX', 'CNDX.L': 'QQQ/CNDX',
   };
   function getHoldingGroup(symbol) { return SYMBOL_GROUPS[symbol] || symbol; }
+
+  // Borrow change % from a US equivalent when the intl symbol has price-only data
+  const CHANGE_PROXY = { 'CSPX.L': 'SPY', 'CNDX.L': 'QQQ' };
 
   // Holding type classification
   const SYMBOL_TYPES = {};
@@ -1452,7 +1456,12 @@
     $refreshBtn.disabled = true;
     $refreshBtn.innerHTML = '<span class="spinner"></span>';
 
-    const symbols = [...new Set(items.map(it => it.symbol))].filter(s => !isCash(s))
+    const portfolioSymbols = [...new Set(items.map(it => it.symbol))].filter(s => !isCash(s));
+    // Also fetch proxy symbols needed for change data (e.g. QQQ for CNDX.L)
+    const proxyExtras = [...new Set(
+      portfolioSymbols.map(s => CHANGE_PROXY[s]).filter(p => p && !portfolioSymbols.includes(p))
+    )];
+    const symbols = [...portfolioSymbols, ...proxyExtras]
       .sort((a, b) => {
         const valOf = sym => items.reduce((sum, it) => it.symbol === sym ? sum + (getPrice(sym) || 0) * it.shares : sum, 0);
         return valOf(b) - valOf(a);
