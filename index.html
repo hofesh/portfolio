@@ -527,6 +527,7 @@
     <div id="summaryDelta"></div>
     <div class="sub" id="monthlyIncome"></div>
     <div class="sub" id="summarySubtext"></div>
+    <div id="summaryVisuals"></div>
   </div>
 
   <!-- Tabs -->
@@ -691,6 +692,7 @@
   const $summaryDelta = $('summaryDelta');
   const $monthlyIncome = $('monthlyIncome');
   const $summarySubtext = $('summarySubtext');
+  const $summaryVisuals = $('summaryVisuals');
   const $refreshBtn = $('refreshBtn');
   const $resetBaselineBtn = $('resetBaselineBtn');
   const $holdingsList = $('holdingsList');
@@ -965,6 +967,33 @@
     parts.push(nItems + ' item' + (nItems !== 1 ? 's' : ''));
     if (nAccounts) parts.push(nAccounts + ' account' + (nAccounts !== 1 ? 's' : ''));
     $summarySubtext.textContent = parts.join(' · ');
+
+    // --- Visuals: Allocation Bar ---
+    let visualsHtml = '';
+
+    // Allocation Bar
+    if (total > 0 && items.length > 0) {
+      const typeVals = {};
+      items.forEach(it => {
+        const type = getHoldingType([it.symbol]);
+        const p = getPrice(it.symbol);
+        typeVals[type] = (typeVals[type] || 0) + (isCash(it.symbol) ? it.shares : (p != null ? p * it.shares : 0));
+      });
+      const COLORS = { 'Stock ETFs': '#fff', 'Stocks': 'rgba(255,255,255,0.6)', 'Hedge': '#ff9f0a', 'Hedge Equities': '#ffd60a', 'Cash': '#30d158' };
+      let bar = '<div style="display:flex; height:6px; border-radius:3px; overflow:hidden; margin-top:16px; background:rgba(0,0,0,0.15); gap:1px;">';
+      let leg = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; justify-content:center; font-size:10px; color:rgba(255,255,255,0.8);">';
+      TYPE_ORDER.forEach(t => {
+        if (!typeVals[t]) return;
+        const pct = (typeVals[t] / total) * 100;
+        if (pct < 0.5) return;
+        const c = COLORS[t] || 'rgba(255,255,255,0.3)';
+        bar += `<div style="width:${pct.toFixed(2)}%; background:${c};" title="${t}: ${pct.toFixed(1)}%"></div>`;
+        leg += `<div style="display:flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; border-radius:50%; background:${c};"></span>${t} ${pct.toFixed(0)}%</div>`;
+      });
+      visualsHtml += bar + '</div>' + leg + '</div>';
+    }
+
+    if ($summaryVisuals) $summaryVisuals.innerHTML = visualsHtml;
   }
 
   // =========================================================
@@ -1527,6 +1556,9 @@
             for (const v of values) { if (v.datetime <= targetStr) return parseFloat(v.close); }
             return null;
           };
+          const historyMap = {};
+          values.forEach(v => { historyMap[v.datetime] = parseFloat(v.close); });
+
           prices[sym] = {
             price: currentPrice,
             lastUpdated: Date.now(),
@@ -1535,6 +1567,7 @@
             change30d: pctChange(closeDaysAgo(30)),
             change1q: pctChange(closeDaysAgo(90)),
             change1y: pctChange(values.length > 0 ? parseFloat(values[values.length - 1].close) : null),
+            history: historyMap,
           };
           updated++;
         }
