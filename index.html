@@ -1678,7 +1678,7 @@
       const idx = it.accountId != null && acctIdToIdx[String(it.accountId)] != null
         ? acctIdToIdx[String(it.accountId)]
         : '';
-      return it.symbol + ':' + it.shares + ':' + idx;
+      return it.symbol + ':' + it.shares + ':' + idx + ':' + (it.bucket || '');
     });
     return acctNames.join('|') + '~' + itemParts.join(';');
   }
@@ -1690,12 +1690,12 @@
     const newItems = [];
     if (itemPart) {
       itemPart.split(';').filter(s => s).forEach(seg => {
-        const [symbol, sharesStr, idxStr] = seg.split(':');
+        const [symbol, sharesStr, idxStr, bucket] = seg.split(':');
         if (!symbol) return;
         const shares = parseFloat(sharesStr) || 0;
         const acctIdx = idxStr !== '' ? parseInt(idxStr) : -1;
         const accountId = acctIdx >= 0 && acctIdx < newAccounts.length ? newAccounts[acctIdx].id : null;
-        newItems.push({ id: uid(), symbol, shares, accountId });
+        newItems.push({ id: uid(), symbol, shares, accountId, bucket: bucket || '' });
       });
     }
     return { items: newItems, accounts: newAccounts };
