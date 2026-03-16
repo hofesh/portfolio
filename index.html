@@ -1512,9 +1512,14 @@
       }
     })();
 
-    // US symbols: spread across all API keys in parallel via the key pool
+    // US symbols: two phases so live prices appear before history is fetched.
+    // Phase 1 — /quote for every symbol (+ FX rate on first job).
+    // Phase 2 — /time_series only for symbols whose history is stale (not yet fetched today).
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const pctChange = (base, ref) => (base != null && ref) ? ((base - ref) / ref) * 100 : null;
+
     const fxDone = { value: false };
-    const usJobs = usSymbols.map(sym => async (apiKey) => {
+    const quoteJobs = usSymbols.map(sym => async (apiKey) => {
       // First worker to run also fetches the FX rate
       if (!fxDone.value) {
         fxDone.value = true;
@@ -1527,31 +1532,16 @@
       refreshStatus[sym] = 'loading';
       render();
       try {
-        const data = await fetchTwelveDataWithKey(apiKey, '/time_series', {
-          symbol: sym, interval: '1day', outputsize: '265'
-        });
-        const values = data.values;
-        if (values && values.length >= 2) {
-          const currentPrice = parseFloat(values[0].close);
-          const prevClose = parseFloat(values[1].close);
-          const pctChange = (old) => old ? ((currentPrice - old) / old) * 100 : null;
-          const closeDaysAgo = (days) => {
-            const targetStr = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-            for (const v of values) { if (v.datetime <= targetStr) return parseFloat(v.close); }
-            return null;
-          };
-          const historyMap = {};
-          values.forEach(v => { historyMap[v.datetime] = parseFloat(v.close); });
-
+        const quoteData = await fetchTwelveDataWithKey(apiKey, '/quote', { symbol: sym });
+        const livePrice = parseFloat(quoteData.close);
+        const prevClose = parseFloat(quoteData.previous_close);
+        const currentPrice = isNaN(livePrice) ? null : livePrice;
+        if (currentPrice != null) {
           prices[sym] = {
+            ...(prices[sym] || {}),
             price: currentPrice,
             lastUpdated: Date.now(),
-            changeDay: pctChange(prevClose),
-            change1w: pctChange(closeDaysAgo(7)),
-            change30d: pctChange(closeDaysAgo(30)),
-            change1q: pctChange(closeDaysAgo(90)),
-            change1y: pctChange(values.length > 0 ? parseFloat(values[values.length - 1].close) : null),
-            history: historyMap,
+            changeDay: pctChange(currentPrice, prevClose),
           };
           updated++;
         }
@@ -1563,8 +1553,7 @@
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const price = parseFloat((await resp.text()).trim());
             if (isNaN(price)) throw new Error('Invalid price');
-            const old = prices[sym] || {};
-            prices[sym] = { ...old, price, lastUpdated: Date.now() };
+            prices[sym] = { ...(prices[sym] || {}), price, lastUpdated: Date.now() };
             refreshStatus[sym] = 'done';
             updated++;
           } catch (e2) {
@@ -1580,7 +1569,45 @@
       render();
     });
 
-    await Promise.all([intlPromise, runWithKeyPool(usJobs)]);
+    // Run phase 1 (quotes) and intl fetches together, so live prices show ASAP.
+    await Promise.all([intlPromise, runWithKeyPool(quoteJobs)]);
+
+    // Phase 2 — history (time_series) for symbols that haven't been updated today.
+    const historySymbols = usSymbols.filter(s => (prices[s] || {}).historyDate !== todayStr);
+    const historyJobs = historySymbols.map(sym => async (apiKey) => {
+      try {
+        const tsData = await fetchTwelveDataWithKey(apiKey, '/time_series', {
+          symbol: sym, interval: '1day', outputsize: '265'
+        });
+        const values = tsData.values;
+        if (values && values.length >= 1) {
+          const currentPrice = prices[sym] && prices[sym].price;
+          const closeDaysAgo = (days) => {
+            const targetStr = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+            for (const v of values) { if (v.datetime <= targetStr) return parseFloat(v.close); }
+            return null;
+          };
+          const historyMap = {};
+          values.forEach(v => { historyMap[v.datetime] = parseFloat(v.close); });
+
+          prices[sym] = {
+            ...(prices[sym] || {}),
+            change1w: pctChange(currentPrice, closeDaysAgo(7)),
+            change30d: pctChange(currentPrice, closeDaysAgo(30)),
+            change1q: pctChange(currentPrice, closeDaysAgo(90)),
+            change1y: pctChange(currentPrice, parseFloat(values[values.length - 1].close)),
+            history: historyMap,
+            historyDate: todayStr,
+          };
+        }
+      } catch (e) {
+        console.warn(`Failed to fetch history for ${sym}:`, e);
+      }
+      savePrices();
+      render();
+    });
+
+    await runWithKeyPool(historyJobs);
 
     showToast(symbols.length ? `Updated ${updated}/${symbols.length} prices` : 'Portfolio up to date');
 
