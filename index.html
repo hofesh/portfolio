@@ -107,7 +107,7 @@
     stroke-linejoin: round;
     pointer-events: none;
   }
-  .summary-actions button.danger-icon svg { stroke: #ffb3af; }
+  .summary-actions button.danger-icon svg { stroke: #fff; }
   .summary-actions .spinner {
     width: 16px;
     height: 16px;
@@ -520,7 +520,6 @@
       <button id="refreshBtn" title="Refresh Prices"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
       <button id="resetBaselineBtn" title="Reset Delta Baseline"><svg viewBox="0 0 24 24" style="pointer-events:none"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/></svg></button>
       <button id="shareBtn" title="Share / Backup"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
-      <button id="apiKeyBtn" title="Set API Key"><svg viewBox="0 0 24 24" style="pointer-events:none"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></button>
       <button id="clearAllBtn" class="danger-icon" title="Clear All"><svg viewBox="0 0 24 24" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>
     <div class="value val-toggle" id="totalValue">—</div>
@@ -884,20 +883,6 @@
   // Borrow change % from a US equivalent when the intl symbol has price-only data
   const CHANGE_PROXY = { 'CSPX.L': 'SPY', 'CNDX.L': 'QQQ' };
 
-  // Holding type classification
-  const SYMBOL_TYPES = {};
-  ['SPY','CSPX.L','SCHD','QQQ','CNDX.L','VTI','VXUS','SHLD','BUZZ','ARKQ','ARKF'].forEach(s => SYMBOL_TYPES[s] = 'Stock ETFs');
-  ['TSLA','RIVN','BYDDF','QS','RBLX','TTWO','AMD','CRWV'].forEach(s => SYMBOL_TYPES[s] = 'Stocks');
-  ['IBIT'].forEach(s => SYMBOL_TYPES[s] = 'Other');
-  ['SGOV','GLDM','TLT','BTAL','DBMF','TAIL','SJB'].forEach(s => SYMBOL_TYPES[s] = 'Hedge');
-  ['JETD','PXE','XLE','FRO','INSW','STNG'].forEach(s => SYMBOL_TYPES[s] = 'Hedge Equities');
-  ['CASH'].forEach(s => SYMBOL_TYPES[s] = 'Cash');
-  const TYPE_ORDER = ['Stock ETFs', 'Stocks', 'Hedge', 'Hedge Equities', 'Other', 'Cash', 'Unknown'];
-  function getHoldingType(syms) {
-    for (const s of syms) { if (SYMBOL_TYPES[s]) return SYMBOL_TYPES[s]; }
-    return 'Unknown';
-  }
-
   // =========================================================
   // RENDER — SUMMARY
   // =========================================================
@@ -973,22 +958,31 @@
 
     // Allocation Bar
     if (total > 0 && items.length > 0) {
-      const typeVals = {};
+      const bucketVals = {};
+      const bucketOrder = [];
       items.forEach(it => {
-        const type = getHoldingType([it.symbol]);
+        const bucket = it.bucket || 'other';
         const p = getPrice(it.symbol);
-        typeVals[type] = (typeVals[type] || 0) + (isCash(it.symbol) ? it.shares : (p != null ? p * it.shares : 0));
+        bucketVals[bucket] = (bucketVals[bucket] || 0) + (isCash(it.symbol) ? it.shares : (p != null ? p * it.shares : 0));
+        if (!bucketOrder.includes(bucket)) bucketOrder.push(bucket);
       });
-      const COLORS = { 'Stock ETFs': '#fff', 'Stocks': 'rgba(255,255,255,0.6)', 'Hedge': '#ff9f0a', 'Hedge Equities': '#ffd60a', 'Cash': '#30d158' };
+      const BUCKET_COLORS = [
+        'rgba(255,255,255,0.9)', 'rgba(255,159,10,0.9)', 'rgba(48,209,88,0.9)',
+        'rgba(255,214,10,0.9)', 'rgba(100,210,255,0.9)', 'rgba(255,100,130,0.9)',
+        'rgba(200,180,255,0.9)', 'rgba(255,180,100,0.9)',
+      ];
+      const sortedBuckets = [...bucketOrder].sort((a, b) => (bucketVals[b] || 0) - (bucketVals[a] || 0));
+      const colorMap = {};
+      sortedBuckets.forEach((b, i) => { colorMap[b] = BUCKET_COLORS[i % BUCKET_COLORS.length]; });
       let bar = '<div style="display:flex; height:6px; border-radius:3px; overflow:hidden; margin-top:16px; background:rgba(0,0,0,0.15); gap:1px;">';
       let leg = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; justify-content:center; font-size:10px; color:rgba(255,255,255,0.8);">';
-      TYPE_ORDER.forEach(t => {
-        if (!typeVals[t]) return;
-        const pct = (typeVals[t] / total) * 100;
+      sortedBuckets.forEach(b => {
+        if (!bucketVals[b]) return;
+        const pct = (bucketVals[b] / total) * 100;
         if (pct < 0.5) return;
-        const c = COLORS[t] || 'rgba(255,255,255,0.3)';
-        bar += `<div style="width:${pct.toFixed(2)}%; background:${c};" title="${t}: ${pct.toFixed(1)}%"></div>`;
-        leg += `<div style="display:flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; border-radius:50%; background:${c};"></span>${t} ${pct.toFixed(0)}%</div>`;
+        const c = colorMap[b];
+        bar += `<div style="width:${pct.toFixed(2)}%; background:${c};" title="${b}: ${pct.toFixed(1)}%"></div>`;
+        leg += `<div style="display:flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; border-radius:50%; background:${c};"></span>${esc(b)} ${pct.toFixed(0)}%</div>`;
       });
       visualsHtml += bar + '</div>' + leg + '</div>';
     }
@@ -1005,7 +999,7 @@
     const map = {};
     items.forEach(it => {
       const group = getHoldingGroup(it.symbol);
-      if (!map[group]) map[group] = { group: group, symbols: {}, accounts: [] };
+      if (!map[group]) map[group] = { group: group, symbols: {}, accounts: [], bucket: it.bucket || '' };
       if (!map[group].symbols[it.symbol]) map[group].symbols[it.symbol] = 0;
       map[group].symbols[it.symbol] += it.shares;
       const accName = getAccountName(it.accountId);
@@ -1037,21 +1031,23 @@
         if (p != null) { mktVal += h.symbols[sym] * p; hasAnyPrice = true; }
       });
       h.mktVal = hasAnyPrice ? mktVal : null;
-      h.type = getHoldingType(syms);
       h.dayDollarChange = compute1dDollarChange(h.symbols);
     });
 
-    // Group by type, ordered by TYPE_ORDER
+    // Group by bucket, ordered by group total value descending
     const grouped = {};
     holdings.forEach(h => {
-      if (!grouped[h.type]) grouped[h.type] = [];
-      grouped[h.type].push(h);
+      const b = h.bucket || 'other';
+      if (!grouped[b]) grouped[b] = [];
+      grouped[b].push(h);
     });
-    const orderedTypes = TYPE_ORDER.filter(t => grouped[t]);
+    const bucketValue = b => (grouped[b] || []).reduce((s, h) => s + (h.mktVal || 0), 0);
+    const orderedBuckets = Object.keys(grouped).sort((a, b) => bucketValue(b) - bucketValue(a));
 
     let html = '';
-    orderedTypes.forEach(type => {
-      const group = grouped[type];
+    orderedBuckets.forEach(bucket => {
+      const group = grouped[bucket];
+      if (!group) return;
       const groupVal = group.reduce((s, h) => s + (h.mktVal || 0), 0);
       const hasAnyVal = group.some(h => h.mktVal != null);
       let groupDelta = 0, hasGroupDelta = false;
@@ -1067,7 +1063,7 @@
         if (h.dayDollarChange != null) { group1dDollar += h.dayDollarChange; hasGroup1d = true; }
       });
       const group1dHtml = hasGroup1d ? `<span class="type-header-1d ${deltaClass(group1dDollar)}">${fmtDelta(group1dDollar)}</span>` : '';
-      html += `<div class="type-header"><span>${esc(type)}${group1dHtml}</span><span class="val-toggle">${groupDeltaHtml} ${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}</span></div>`;
+      html += `<div class="type-header"><span>${esc(bucket)}${group1dHtml}</span><span class="val-toggle">${groupDeltaHtml} ${hasAnyVal ? (showPct ? fmtPctOf(groupVal, portfolioTotal) : fmtMoney(groupVal)) : '—'}</span></div>`;
       html += group.map(h => {
         const syms = Object.keys(h.symbols);
         const isUnified = syms.length > 1;
@@ -1443,19 +1439,6 @@
   });
 
   // =========================================================
-  // API KEY
-  // =========================================================
-  const $apiKeyBtn = $('apiKeyBtn');
-  $apiKeyBtn.addEventListener('click', () => {
-    const current = twelveDataApiKeys.length ? `${twelveDataApiKeys.length} key(s): ${twelveDataApiKeys.map(k => k.slice(0,6)+'…').join(', ')}` : 'None set';
-    const input = prompt(`Twelve Data API Keys (${current})\n\nPaste one or more keys, comma-separated.\nGet free keys at https://twelvedata.com/pricing`, twelveDataApiKeys.join(', '));
-    if (input === null) return;
-    twelveDataApiKeys = input.split(',').map(k => k.trim()).filter(Boolean);
-    save(TWELVE_DATA_KEY, twelveDataApiKeys);
-    showToast(twelveDataApiKeys.length ? `${twelveDataApiKeys.length} API key(s) saved` : 'API keys cleared');
-  });
-
-  // =========================================================
   // REFRESH PRICES
   // =========================================================
   $refreshBtn.addEventListener('click', refreshPrices);
@@ -1463,6 +1446,7 @@
 
   function resetBaseline() {
     if (items.length === 0) { showToast('Add some items first'); return; }
+    if (!confirm('Reset the delta baseline to current prices?\n\nThe Δ indicator will be measured from now.')) return;
     const symbols = [...new Set(items.map(it => it.symbol))];
     prevPrices = {};
     symbols.forEach(sym => {
@@ -1870,14 +1854,15 @@
       return;
     }
 
-    // Parse header to find column indices
+    // Expected format: Ticker,Type,Units,Account,Bucket
     const header = lines[0].toLowerCase().split(',').map(h => h.trim());
-    const symIdx = header.findIndex(h => h === 'stock' || h === 'symbol' || h === 'ticker' || h === 'etf');
-    const unitsIdx = header.findIndex(h => h === 'units' || h === 'shares' || h === 'quantity' || h === 'qty');
-    const descIdx = header.findIndex(h => h === 'desc' || h === 'description' || h === 'account' || h === 'name');
+    const symIdx = header.findIndex(h => h === 'ticker');
+    const unitsIdx = header.findIndex(h => h === 'units');
+    const accountIdx = header.findIndex(h => h === 'account');
+    const bucketIdx = header.findIndex(h => h === 'bucket');
 
     if (symIdx < 0 || unitsIdx < 0) {
-      showToast('CSV must have Stock and Units columns');
+      showToast('CSV must have Ticker and Units columns');
       return;
     }
 
@@ -1887,12 +1872,13 @@
       const cols = lines[i].split(',').map(c => c.trim());
       const symbol = (cols[symIdx] || '').toUpperCase();
       const shares = parseFloat(cols[unitsIdx]);
-      const desc = descIdx >= 0 ? (cols[descIdx] || '').trim() : '';
+      const account = accountIdx >= 0 ? (cols[accountIdx] || '').trim() : '';
+      const bucket = bucketIdx >= 0 ? (cols[bucketIdx] || '').trim() : '';
 
       if (!symbol) continue;
-      if (isNaN(shares) || shares <= 0) continue; // skip zero or invalid
+      if (isNaN(shares) || shares <= 0) continue;
 
-      rows.push({ symbol, shares, desc });
+      rows.push({ symbol, shares, account, bucket });
     }
 
     if (rows.length === 0) {
@@ -1905,9 +1891,9 @@
     const msg = `Import ${rows.length} item(s) (${symbolCount} symbols) from CSV?\n\nExisting positions (same ticker + account) will be updated.`;
     if (!confirm(msg)) return;
 
-    // Auto-create accounts from desc column
-    const descNames = [...new Set(rows.map(r => r.desc).filter(d => d))];
-    descNames.forEach(name => {
+    // Auto-create accounts from account column
+    const accountNames = [...new Set(rows.map(r => r.account).filter(d => d))];
+    accountNames.forEach(name => {
       if (!accounts.find(a => a.name.toLowerCase() === name.toLowerCase())) {
         accounts.push({ id: uid(), name });
       }
@@ -1916,8 +1902,8 @@
 
     let added = 0, updated = 0;
     rows.forEach(row => {
-      const accountId = row.desc
-        ? (accounts.find(a => a.name.toLowerCase() === row.desc.toLowerCase()) || {}).id || null
+      const accountId = row.account
+        ? (accounts.find(a => a.name.toLowerCase() === row.account.toLowerCase()) || {}).id || null
         : null;
       const existing = items.find(it =>
         it.symbol === row.symbol &&
@@ -1925,17 +1911,25 @@
       );
       if (existing) {
         existing.shares = row.shares;
+        if (row.bucket) existing.bucket = row.bucket;
         updated++;
       } else {
-        items.push({ id: uid(), symbol: row.symbol, shares: row.shares, accountId });
+        items.push({ id: uid(), symbol: row.symbol, shares: row.shares, accountId, bucket: row.bucket || '' });
         added++;
       }
     });
+
+    // Drop any zero-share positions (existing or newly set to 0)
+    const before = items.length;
+    items = items.filter(it => it.shares > 0);
+    const dropped = before - items.length;
+
     saveItems();
     render();
     const parts = [];
     if (added) parts.push(`${added} added`);
     if (updated) parts.push(`${updated} updated`);
+    if (dropped) parts.push(`${dropped} zero-position removed`);
     showToast(`Imported: ${parts.join(', ')}`);
 
     // Auto-refresh prices for new symbols
