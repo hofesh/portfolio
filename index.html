@@ -1487,23 +1487,20 @@
     const usSymbols = symbols.filter(s => !isInternationalSymbol(s));
     let updated = 0;
 
-    // International symbols + FX: fetch in parallel via yf-import (no rate limit)
+    // International symbols + FX: fetch in parallel via Yahoo (no rate limit)
     const intlPromise = (async () => {
       if (intlSymbols.length) {
         intlSymbols.forEach(sym => { refreshStatus[sym] = 'loading'; });
         render();
         await Promise.all(intlSymbols.map(async (sym) => {
           try {
-            const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const price = parseFloat((await resp.text()).trim());
-            if (isNaN(price)) throw new Error('Invalid price');
+            const price = await fetchYahooPrice(sym);
             const old = prices[sym] || {};
             prices[sym] = { ...old, price, lastUpdated: Date.now() };
             refreshStatus[sym] = 'done';
             updated++;
           } catch (e) {
-            console.warn(`Failed to fetch ${sym} via yf-import:`, e);
+            console.warn(`Failed to fetch ${sym} via Yahoo:`, e);
             refreshStatus[sym] = 'error';
           }
           render();
@@ -1549,10 +1546,7 @@
       } catch (e) {
         if (e.message && (e.message.includes('starting with') || e.message.includes('missing or invalid'))) {
           try {
-            const resp = await fetch(YF_IMPORT_URL(sym), { cache: 'no-store' });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const price = parseFloat((await resp.text()).trim());
-            if (isNaN(price)) throw new Error('Invalid price');
+            const price = await fetchYahooPrice(sym);
             prices[sym] = { ...(prices[sym] || {}), price, lastUpdated: Date.now() };
             refreshStatus[sym] = 'done';
             updated++;
@@ -1623,7 +1617,21 @@
 
   // Twelve Data API — multi-key rate-limited queue (8 credits/min per key)
   const TWELVE_DATA_BASE = 'https://api.twelvedata.com';
-  const YF_IMPORT_URL = (sym) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent('https://yf-import.gionn.net/api/quotes/' + sym)}`;
+  // Yahoo sends no CORS headers, so the chart API is read through r.jina.ai, which
+  // prepends a text preamble before the untouched JSON payload.
+  const YF_CHART_URL = (sym) => `https://r.jina.ai/https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
+
+  async function fetchYahooPrice(sym) {
+    const resp = await fetch(YF_CHART_URL(sym), { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.text();
+    const start = raw.indexOf('{'), end = raw.lastIndexOf('}');
+    if (start === -1 || end <= start) throw new Error('No JSON payload in response');
+    const meta = JSON.parse(raw.slice(start, end + 1)).chart.result[0].meta;
+    const price = meta.regularMarketPrice;
+    if (typeof price !== 'number' || isNaN(price)) throw new Error('Invalid price');
+    return price;
+  }
   const CREDITS_PER_MIN = 8;
   let refreshStatus = {};
   let isRefreshing = false;
